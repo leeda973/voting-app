@@ -5,8 +5,10 @@ import {
   effectiveClosedAt,
   effectivePollState,
   effectiveStatus,
+  formatKstDateTime,
   groupPollsByStatus,
   tallyResult,
+  toKstInputValue,
   validatePollInput,
   type PollSummary,
 } from "./poll-rules";
@@ -53,17 +55,19 @@ describe("groupPollsByStatus", () => {
 
 describe("validatePollInput", () => {
   const options = ["치킨", "피자"];
+  // 마감 시각이 없는 입력은 현재 시각과 무관하다. 고정된 시각을 넘긴다
+  const NOW = Date.parse("2026-09-25T00:00:00.000Z");
 
-  function errorsOf(input: { question: unknown; options: unknown }) {
-    const result = validatePollInput(input);
+  function errorsOf(input: { question: unknown; options: unknown; deadline?: unknown }) {
+    const result = validatePollInput(input, NOW);
     if (result.ok) throw new Error("검증을 통과하면 안 된다");
     return result.errors;
   }
 
   it("올바른 입력은 앞뒤 공백을 지운 값으로 통과한다", () => {
-    expect(validatePollInput({ question: "  회식 메뉴는?  ", options: [" 치킨", "피자 ", " 족발 "] })).toEqual({
+    expect(validatePollInput({ question: "  회식 메뉴는?  ", options: [" 치킨", "피자 ", " 족발 "] }, NOW)).toEqual({
       ok: true,
-      value: { question: "회식 메뉴는?", options: ["치킨", "피자", "족발"] },
+      value: { question: "회식 메뉴는?", options: ["치킨", "피자", "족발"], deadline: null },
     });
   });
 
@@ -73,7 +77,7 @@ describe("validatePollInput", () => {
     });
 
     it("100자는 통과한다", () => {
-      expect(validatePollInput({ question: "가".repeat(100), options }).ok).toBe(true);
+      expect(validatePollInput({ question: "가".repeat(100), options }, NOW).ok).toBe(true);
     });
 
     it("101자는 거부한다", () => {
@@ -91,9 +95,9 @@ describe("validatePollInput", () => {
     });
 
     it("2개와 10개는 통과한다", () => {
-      expect(validatePollInput({ question: "질문", options: ["가", "나"] }).ok).toBe(true);
+      expect(validatePollInput({ question: "질문", options: ["가", "나"] }, NOW).ok).toBe(true);
       const ten = Array.from({ length: 10 }, (_, i) => `선택지 ${i + 1}`);
-      expect(validatePollInput({ question: "질문", options: ten }).ok).toBe(true);
+      expect(validatePollInput({ question: "질문", options: ten }, NOW).ok).toBe(true);
     });
 
     it("11개는 거부한다", () => {
@@ -108,7 +112,7 @@ describe("validatePollInput", () => {
 
   describe("선택지 문구", () => {
     it("50자는 통과하고 51자는 거부한다", () => {
-      expect(validatePollInput({ question: "질문", options: ["가".repeat(50), "나"] }).ok).toBe(true);
+      expect(validatePollInput({ question: "질문", options: ["가".repeat(50), "나"] }, NOW).ok).toBe(true);
       expect(errorsOf({ question: "질문", options: ["가".repeat(51), "나"] }).optionItems).toEqual([
         "선택지는 50자 이하로 입력해 주세요.",
         null,
@@ -344,5 +348,84 @@ describe("effectivePollState와 목록 분류", () => {
   it("마감 시각이 미래인 투표는 진행 중이다", () => {
     const { open } = classify([stored("future", { deadline: "2026-09-28T00:00:00.000Z" })]);
     expect(open.map((p) => [p.id, p.status])).toEqual([["future", "open"]]);
+  });
+});
+
+describe("validatePollInput의 마감 시각", () => {
+  // 2026-09-25 09:00 (한국 시간) = 2026-09-25T00:00Z
+  const NOW = Date.parse("2026-09-25T00:00:00.000Z");
+  const base = { question: "질문", options: ["가", "나"] };
+  const MIN = 60_000;
+
+  function deadlineOf(deadline: unknown, now = NOW) {
+    const result = validatePollInput({ ...base, deadline }, now);
+    return result.ok ? { ok: result.value.deadline } : { error: result.errors.deadline };
+  }
+
+  it.each([undefined, null, ""])("없으면(%j) 마감 시각 없이 통과한다", (deadline) => {
+    expect(deadlineOf(deadline)).toEqual({ ok: null });
+  });
+
+  it("한국 시간으로 해석해 UTC로 돌려준다", () => {
+    // 2026-09-27 18:00 KST = 09:00Z
+    expect(deadlineOf("2026-09-27T18:00")).toEqual({ ok: "2026-09-27T09:00:00.000Z" });
+  });
+
+  it.each(["2026-09-27", "2026-09-27 18:00", "2026-09-27T18:00:00", "2026-13-01T10:00", "2026-02-30T10:00", "2026-09-27T24:00", "내일", 20260927])(
+    "형식이 잘못되면(%j) 거부한다",
+    (deadline) => {
+      expect(deadlineOf(deadline)).toEqual({ error: "마감 시각을 다시 확인해 주세요." });
+    },
+  );
+
+  it("지금부터 10분 뒤는 통과하고, 9분 59초 뒤는 거부한다", () => {
+    // 입력은 분 단위라 초를 흉내 내려고 현재 시각을 1초 옮긴다: 09:10 KST 입력
+    expect(deadlineOf("2026-09-25T09:10")).toEqual({ ok: "2026-09-25T00:10:00.000Z" });
+    expect(deadlineOf("2026-09-25T09:10", NOW + 1000)).toEqual({
+      error: "마감 시각은 지금부터 10분 뒤 이후로 정해 주세요.",
+    });
+  });
+
+  it("지난 시각은 거부한다", () => {
+    expect(deadlineOf("2026-09-24T18:00")).toEqual({ error: "마감 시각은 지금부터 10분 뒤 이후로 정해 주세요." });
+  });
+
+  it("30일 뒤는 통과하고, 30일 1분 뒤는 거부한다", () => {
+    expect(deadlineOf("2026-10-25T09:00")).toEqual({ ok: "2026-10-25T00:00:00.000Z" });
+    expect(deadlineOf("2026-10-25T09:01")).toEqual({ error: "마감 시각은 30일 이내로 정해 주세요." });
+    expect(Date.parse("2026-10-25T00:01:00.000Z") - NOW).toBe(30 * 24 * 60 * MIN + MIN);
+  });
+
+  it("마감 시각 오류는 다른 칸 오류와 함께 돌려준다", () => {
+    const result = validatePollInput({ question: "", options: ["가"], deadline: "x" }, NOW);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(["deadline", "options", "question"]);
+  });
+});
+
+describe("formatKstDateTime", () => {
+  it("한국 시간 기준 월·일·요일·시각을 보여준다", () => {
+    expect(formatKstDateTime("2026-09-27T09:00:00.000Z")).toBe("9월 27일(일) 18:00");
+  });
+
+  it("UTC 자정 전 시각은 한국 시간으로 다음 날이다", () => {
+    expect(formatKstDateTime("2026-09-26T15:30:00.000Z")).toBe("9월 27일(일) 00:30");
+  });
+
+  it("한 자리 분도 두 자리로 보여준다", () => {
+    expect(formatKstDateTime("2026-01-01T00:05:00.000Z")).toBe("1월 1일(목) 09:05");
+  });
+});
+
+describe("toKstInputValue", () => {
+  it("현재 시각을 한국 시간 날짜·시간 입력값(분 단위)으로 바꾼다", () => {
+    expect(toKstInputValue(Date.parse("2026-09-26T15:30:59.999Z"))).toBe("2026-09-27T00:30");
+  });
+
+  it("입력 검증과 왕복해도 같은 분이다", () => {
+    const now = Date.parse("2026-09-25T00:00:00.000Z");
+    const value = toKstInputValue(now + 24 * 60 * 60 * 1000);
+    const result = validatePollInput({ question: "질문", options: ["가", "나"], deadline: value }, now);
+    expect(result.ok && result.value.deadline).toBe("2026-09-26T00:00:00.000Z");
   });
 });

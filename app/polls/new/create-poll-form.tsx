@@ -9,11 +9,13 @@ import {
   QUESTION_MAX_LENGTH,
   type PollInputErrors,
 } from "@/lib/poll-rules";
+import { DeadlineField } from "./deadline-field";
 
 export function CreatePollForm() {
   const router = useRouter();
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
+  const [deadline, setDeadline] = useState({ enabled: false, value: "" });
   const [errors, setErrors] = useState<PollInputErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +31,10 @@ export function CreatePollForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (deadline.enabled && !deadline.value) {
+      setErrors({ deadline: "마감 시각을 골라 주세요. 필요 없으면 스위치를 꺼 주세요." });
+      return;
+    }
     setSubmitting(true);
     setErrors({});
     setFormError(null);
@@ -37,7 +43,7 @@ export function CreatePollForm() {
       const response = await fetch("/api/polls", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, options }),
+        body: JSON.stringify({ question, options, deadline: deadline.enabled ? deadline.value : null }),
       });
       const body = await response.json().catch(() => null);
 
@@ -114,6 +120,17 @@ export function CreatePollForm() {
           + 선택지 추가
         </button>
       </fieldset>
+
+      <DeadlineField
+        enabled={deadline.enabled}
+        value={deadline.value}
+        error={errors.deadline}
+        onChange={(next) => {
+          setDeadline(next);
+          // 마감 시각을 고치면 이전 오류는 지운다(다시 만들 때 서버가 다시 검증한다)
+          setErrors((prev) => ({ ...prev, deadline: undefined }));
+        }}
+      />
 
       {formError && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

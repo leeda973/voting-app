@@ -67,11 +67,16 @@ export const OPTION_MAX_LENGTH = 50;
 export const MIN_OPTIONS = 2;
 export const MAX_OPTIONS = 10;
 
-export type PollInput = { question: string; options: string[] };
+export type PollInput = {
+  question: string;
+  options: string[];
+  deadline: string | null; // 마감 시각(UTC ISO). 없으면 null
+};
 
 export type PollInputErrors = {
   question?: string;
   options?: string;
+  deadline?: string;
   // 선택지 칸별 오류. 오류가 없는 칸은 null이다.
   optionItems?: (string | null)[];
 };
@@ -82,7 +87,10 @@ export type PollInputResult = { ok: true; value: PollInput } | { ok: false; erro
 const lengthOf = (text: string) => Array.from(text).length;
 const trimmed = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
-export function validatePollInput(input: { question: unknown; options: unknown }): PollInputResult {
+export function validatePollInput(
+  input: { question: unknown; options: unknown; deadline?: unknown },
+  now: number,
+): PollInputResult {
   const errors: PollInputErrors = {};
 
   const question = trimmed(input.question);
@@ -102,8 +110,57 @@ export function validatePollInput(input: { question: unknown; options: unknown }
   });
   if (optionItems.some((error) => error !== null)) errors.optionItems = optionItems;
 
-  if (Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: true, value: { question, options } };
+  const deadline = validateDeadline(input.deadline, now);
+  if (!deadline.ok) errors.deadline = deadline.error;
+
+  if (Object.keys(errors).length > 0 || !deadline.ok) return { ok: false, errors };
+  return { ok: true, value: { question, options, deadline: deadline.value } };
+}
+
+// ── 마감 시각과 한국 시간 ──
+// 마감 시각은 한국 시간(UTC+9, 서머타임 없음) 분 단위로 입력받고, 저장·전달은 UTC ISO로 한다.
+
+const MINUTE_MS = 60_000;
+const KST_OFFSET_MS = 9 * 60 * MINUTE_MS;
+export const DEADLINE_MIN_MS = 10 * MINUTE_MS;
+export const DEADLINE_MAX_MS = 30 * 24 * 60 * MINUTE_MS;
+const KST_INPUT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// "YYYY-MM-DDTHH:mm"(한국 시간)를 UTC ms로. 형식이 틀리거나 없는 날짜(2월 30일 등)면 null
+export function parseKstInput(value: string): number | null {
+  const match = KST_INPUT.exec(value);
+  if (!match) return null;
+  const [year, month, day, hour, minute] = match.slice(1).map(Number);
+  const ms = Date.UTC(year, month - 1, day, hour, minute) - KST_OFFSET_MS;
+  return toKstInputValue(ms) === value ? ms : null;
+}
+
+function validateDeadline(
+  value: unknown,
+  now: number,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (value === undefined || value === null || value === "") return { ok: true, value: null };
+  const ms = typeof value === "string" ? parseKstInput(value) : null;
+  if (ms === null) return { ok: false, error: "마감 시각을 다시 확인해 주세요." };
+  if (ms < now + DEADLINE_MIN_MS) return { ok: false, error: "마감 시각은 지금부터 10분 뒤 이후로 정해 주세요." };
+  if (ms > now + DEADLINE_MAX_MS) return { ok: false, error: "마감 시각은 30일 이내로 정해 주세요." };
+  return { ok: true, value: new Date(ms).toISOString() };
+}
+
+// 시각(ms)을 한국 시간 날짜·시간 입력값 "YYYY-MM-DDTHH:mm"로(초는 버린다)
+export function toKstInputValue(ms: number): string {
+  const kst = new Date(ms + KST_OFFSET_MS);
+  return `${kst.getUTCFullYear()}-${pad2(kst.getUTCMonth() + 1)}-${pad2(kst.getUTCDate())}T${pad2(kst.getUTCHours())}:${pad2(kst.getUTCMinutes())}`;
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+// UTC ISO 시각을 기기 시간대와 상관없이 한국 시간 "9월 27일(일) 18:00"으로
+export function formatKstDateTime(iso: string): string {
+  const kst = new Date(Date.parse(iso) + KST_OFFSET_MS);
+  return `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일(${WEEKDAYS[kst.getUTCDay()]}) ${pad2(kst.getUTCHours())}:${pad2(kst.getUTCMinutes())}`;
 }
 
 // ── 투표 상세 ──

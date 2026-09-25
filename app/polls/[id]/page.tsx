@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { currentViewer } from "@/lib/auth";
-import { decideVote } from "@/lib/poll-rules";
+import { decideVote, formatKstDateTime } from "@/lib/poll-rules";
 import { getPollDetail, getResult } from "@/lib/polls";
 import { AdminActions } from "./admin-actions";
 import { ResultView } from "./result-view";
@@ -31,7 +31,10 @@ export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <BackLink />
-      <p className="mt-6 text-sm text-muted">{poll.status === "open" ? "진행 중" : "마감"}</p>
+      <p className="mt-6 text-sm text-muted">
+        {poll.status === "open" ? "진행 중" : "마감"}
+        {poll.deadline && <> · {formatKstDateTime(poll.deadline)} 마감</>}
+      </p>
       <h1 className="mt-1 text-2xl font-bold break-words">{poll.question}</h1>
 
       {canVote && <VoteForm pollId={poll.id} options={poll.options} />}

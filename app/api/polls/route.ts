@@ -18,7 +18,10 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json().catch(() => null);
-    const result = validatePollInput({ question: body?.question, options: body?.options });
+    const result = validatePollInput(
+      { question: body?.question, options: body?.options, deadline: body?.deadline },
+      Date.now(),
+    );
     if (!result.ok) {
       return errorResponse(400, "invalid_input", "입력한 내용을 확인해 주세요.", { fields: result.errors });
     }

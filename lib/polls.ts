@@ -69,12 +69,13 @@ export async function listPolls(voterId: string | null): Promise<PollList> {
 }
 
 // 투표 1건과 선택지들을 한 트랜잭션으로 저장한다. 선택지는 입력 순서대로 position이 매겨진다.
+// 마감 시각(input.deadline)은 closes_at에 저장한다. 만든 뒤 바꾸는 함수는 없다.
 export async function createPoll(input: PollInput): Promise<string> {
   const sql = getSql();
   const id = crypto.randomUUID();
   const positions = input.options.map((_, i) => i);
   await sql.transaction([
-    sql`INSERT INTO polls (id, question) VALUES (${id}, ${input.question})`,
+    sql`INSERT INTO polls (id, question, closes_at) VALUES (${id}, ${input.question}, ${input.deadline})`,
     sql`
       INSERT INTO options (poll_id, label, position)
       SELECT ${id}, label, position
