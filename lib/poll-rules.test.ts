@@ -553,8 +553,8 @@ describe("watchedDeadlines", () => {
   });
 });
 
-describe("groupPollsByStatus: 투표 완료한 투표는 아래로", () => {
-  it("진행 중: 투표하지 않은 투표가 먼저, 투표 완료한 투표는 마감이 더 임박해도 아래로", () => {
+describe("groupPollsByStatus: 표를 남긴 투표는 아래로", () => {
+  it("진행 중: 표를 남기지 않은 투표가 먼저, 표를 남긴 투표는 마감이 더 임박해도 아래로", () => {
     const { open } = groupPollsByStatus([
       poll({ id: "voted-soon", hasVoted: true, deadline: "2026-09-25T01:00:00.000Z" }),
       poll({ id: "voted-none", hasVoted: true, createdAt: "2026-09-24T00:00:00.000Z" }),
@@ -574,7 +574,7 @@ describe("groupPollsByStatus: 투표 완료한 투표는 아래로", () => {
     expect(open.map((p) => p.id)).toEqual(["voted-soon", "voted-late", "voted-none-new", "voted-none-old"]);
   });
 
-  it("마감 섹션은 투표 완료 여부와 상관없이 마감된 때 최신순이다", () => {
+  it("마감 섹션은 표를 남겼는지와 상관없이 마감된 때 최신순이다", () => {
     const { closed } = groupPollsByStatus([
       poll({ id: "todo-early", status: "closed", closedAt: "2026-09-20T00:00:00.000Z" }),
       poll({ id: "voted-late", status: "closed", hasVoted: true, closedAt: "2026-09-24T00:00:00.000Z" }),
