@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  DAY_MS,
   DEADLINE_MAX_MS,
   DEADLINE_MIN_MS,
   formatKstDateTime,
@@ -9,7 +10,6 @@ import {
   toKstInputValue,
 } from "@/lib/poll-rules";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const QUICK_DAYS = [1, 3, 7];
 
 // 입력 가능 범위(한국 시간). 최솟값은 분 단위로 올려 "10분 뒤 이후"를 지킨다
@@ -85,6 +85,8 @@ export function DeadlineField({
             min={range?.min}
             max={range?.max}
             onChange={(e) => onChange({ enabled: true, value: e.target.value })}
+            // 화면을 오래 열어 두면 최솟값이 과거로 밀리므로 입력할 때마다 범위를 다시 계산한다
+            onFocus={() => setRange(bounds(Date.now()))}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? "deadline-error" : undefined}
             className="min-w-0 rounded-xl border border-line bg-background px-4 py-3 text-base"

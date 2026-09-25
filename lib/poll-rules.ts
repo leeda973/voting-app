@@ -121,9 +121,12 @@ export function validatePollInput(
 // 마감 시각은 한국 시간(UTC+9, 서머타임 없음) 분 단위로 입력받고, 저장·전달은 UTC ISO로 한다.
 
 const MINUTE_MS = 60_000;
+export const DAY_MS = 24 * 60 * MINUTE_MS;
 const KST_OFFSET_MS = 9 * 60 * MINUTE_MS;
-export const DEADLINE_MIN_MS = 10 * MINUTE_MS;
-export const DEADLINE_MAX_MS = 30 * 24 * 60 * MINUTE_MS;
+const DEADLINE_MIN_MINUTES = 10;
+const DEADLINE_MAX_DAYS = 30;
+export const DEADLINE_MIN_MS = DEADLINE_MIN_MINUTES * MINUTE_MS;
+export const DEADLINE_MAX_MS = DEADLINE_MAX_DAYS * DAY_MS;
 const KST_INPUT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -141,11 +144,14 @@ function validateDeadline(
   value: unknown,
   now: number,
 ): { ok: true; value: string | null } | { ok: false; error: string } {
-  if (value === undefined || value === null || value === "") return { ok: true, value: null };
+  if (value === undefined || value === null) return { ok: true, value: null };
+  // 빈 문자열은 "마감 시각 정하기"를 켜고 값을 고르지 않은 것이다
+  if (value === "") return { ok: false, error: "마감 시각을 골라 주세요. 필요 없으면 마감 시각 정하기를 꺼 주세요." };
   const ms = typeof value === "string" ? parseKstInput(value) : null;
   if (ms === null) return { ok: false, error: "마감 시각을 다시 확인해 주세요." };
-  if (ms < now + DEADLINE_MIN_MS) return { ok: false, error: "마감 시각은 지금부터 10분 뒤 이후로 정해 주세요." };
-  if (ms > now + DEADLINE_MAX_MS) return { ok: false, error: "마감 시각은 30일 이내로 정해 주세요." };
+  if (ms < now + DEADLINE_MIN_MS)
+    return { ok: false, error: `마감 시각은 지금부터 ${DEADLINE_MIN_MINUTES}분 뒤 이후로 정해 주세요.` };
+  if (ms > now + DEADLINE_MAX_MS) return { ok: false, error: `마감 시각은 ${DEADLINE_MAX_DAYS}일 이내로 정해 주세요.` };
   return { ok: true, value: new Date(ms).toISOString() };
 }
 

@@ -362,8 +362,12 @@ describe("validatePollInput의 마감 시각", () => {
     return result.ok ? { ok: result.value.deadline } : { error: result.errors.deadline };
   }
 
-  it.each([undefined, null, ""])("없으면(%j) 마감 시각 없이 통과한다", (deadline) => {
+  it.each([undefined, null])("없으면(%j) 마감 시각 없이 통과한다", (deadline) => {
     expect(deadlineOf(deadline)).toEqual({ ok: null });
+  });
+
+  it("빈 문자열은 고르지 않은 것으로 보고 거부한다(마감 시각 정하기를 켜고 비워 둠)", () => {
+    expect(deadlineOf("")).toEqual({ error: "마감 시각을 골라 주세요. 필요 없으면 마감 시각 정하기를 꺼 주세요." });
   });
 
   it("한국 시간으로 해석해 UTC로 돌려준다", () => {

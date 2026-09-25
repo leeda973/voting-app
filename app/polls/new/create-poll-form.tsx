@@ -31,10 +31,6 @@ export function CreatePollForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (deadline.enabled && !deadline.value) {
-      setErrors({ deadline: "마감 시각을 골라 주세요. 필요 없으면 스위치를 꺼 주세요." });
-      return;
-    }
     setSubmitting(true);
     setErrors({});
     setFormError(null);
@@ -43,6 +39,7 @@ export function CreatePollForm() {
       const response = await fetch("/api/polls", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // 스위치가 켜져 있으면 비어 있어도 그대로 보내 서버가 다른 칸과 함께 검증한다
         body: JSON.stringify({ question, options, deadline: deadline.enabled ? deadline.value : null }),
       });
       const body = await response.json().catch(() => null);
