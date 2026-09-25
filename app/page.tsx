@@ -43,6 +43,7 @@ export default async function Home() {
             관리자 로그인
           </Link>
         )}
+        <p className="w-full text-center text-xs">만든 사람 daeun</p>
       </footer>
     </main>
   );
