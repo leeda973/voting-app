@@ -7,6 +7,7 @@ import {
   effectiveStatus,
   formatKstDateTime,
   groupPollsByStatus,
+  remainingTime,
   tallyResult,
   toKstInputValue,
   validatePollInput,
@@ -431,5 +432,73 @@ describe("toKstInputValue", () => {
     const value = toKstInputValue(now + 24 * 60 * 60 * 1000);
     const result = validatePollInput({ question: "질문", options: ["가", "나"], deadline: value }, now);
     expect(result.ok && result.value.deadline).toBe("2026-09-26T00:00:00.000Z");
+  });
+});
+
+describe("remainingTime", () => {
+  const deadline = "2026-09-27T09:00:00.000Z";
+  const at = Date.parse(deadline);
+  const MIN = 60_000;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+
+  it.each([
+    [3 * DAY + 5 * HOUR, "3일 남음", false],
+    [DAY, "1일 남음", false],
+    [DAY - MIN, "23시간 남음", true],
+    [HOUR, "1시간 남음", true],
+    [HOUR - 1, "1시간 남음", true], // 분 올림이 60분이 되면 "1시간"으로 보인다
+    [30 * MIN, "30분 남음", true],
+    [29 * MIN + 1, "30분 남음", true],
+    [30 * 1000, "1분 남음", true],
+    [1, "1분 남음", true],
+  ])("%d ms 남으면 %s (강조 %s)", (left, label, urgent) => {
+    expect(remainingTime(deadline, at - left)).toEqual({ label, urgent });
+  });
+
+  it("마감 시각이 되면 마감됨이다", () => {
+    expect(remainingTime(deadline, at)).toEqual({ label: "마감됨", urgent: false });
+    expect(remainingTime(deadline, at + MIN)).toEqual({ label: "마감됨", urgent: false });
+  });
+});
+
+describe("groupPollsByStatus 정렬", () => {
+  const now = Date.parse("2026-09-25T00:00:00.000Z");
+  const classify = (polls: PollSummary[]) => groupPollsByStatus(polls);
+
+  it("진행 중: 마감 시각 있는 투표를 임박순으로 먼저, 없는 투표는 아래에 최신순", () => {
+    const { open } = classify([
+      poll({ id: "none-old", createdAt: "2026-09-01T00:00:00.000Z" }),
+      poll({ id: "late", deadline: "2026-09-30T00:00:00.000Z", createdAt: "2026-09-24T00:00:00.000Z" }),
+      poll({ id: "none-new", createdAt: "2026-09-20T00:00:00.000Z" }),
+      poll({ id: "soon", deadline: "2026-09-26T00:00:00.000Z", createdAt: "2026-09-02T00:00:00.000Z" }),
+    ]);
+    expect(open.map((p) => p.id)).toEqual(["soon", "late", "none-new", "none-old"]);
+    expect(now).toBeLessThan(Date.parse("2026-09-26T00:00:00.000Z"));
+  });
+
+  it("마감: 마감된 때의 최신순(만든 순서와 무관)", () => {
+    const { closed } = classify([
+      poll({ id: "made-new-closed-early", status: "closed", createdAt: "2026-09-20T00:00:00.000Z", closedAt: "2026-09-21T00:00:00.000Z" }),
+      poll({ id: "made-old-closed-late", status: "closed", createdAt: "2026-09-01T00:00:00.000Z", closedAt: "2026-09-24T00:00:00.000Z" }),
+    ]);
+    expect(closed.map((p) => p.id)).toEqual(["made-old-closed-late", "made-new-closed-early"]);
+  });
+});
+
+describe("formatKstDateTime 옵션", () => {
+  const now = Date.parse("2026-09-25T00:00:00.000Z");
+
+  it("요일을 뺄 수 있다(목록용)", () => {
+    expect(formatKstDateTime("2026-09-27T09:00:00.000Z", { weekday: false })).toBe("9월 27일 18:00");
+  });
+
+  it("현재 시각과 한국 시간 연도가 다르면 연도를 붙인다", () => {
+    expect(formatKstDateTime("2025-09-27T09:00:00.000Z", { now })).toBe("2025년 9월 27일(토) 18:00");
+    expect(formatKstDateTime("2026-09-27T09:00:00.000Z", { now })).toBe("9월 27일(일) 18:00");
+  });
+
+  it("연도는 한국 시간 기준이다(UTC로는 작년 12월 31일 15시 = 한국 1월 1일 0시)", () => {
+    expect(formatKstDateTime("2025-12-31T15:00:00.000Z", { now })).toBe("1월 1일(목) 00:00");
   });
 });

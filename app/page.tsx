@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { LogoutButton } from "@/app/admin/logout-button";
+import { ListTiming } from "@/app/components/poll-timing";
 import { currentViewer } from "@/lib/auth";
+import { requestTime } from "@/lib/clock";
 import { listPolls } from "@/lib/polls";
 import type { PollSummary } from "@/lib/poll-rules";
 
 export default async function Home() {
   const viewer = await currentViewer();
   const { open, closed } = await listPolls(viewer.voterId);
+  const now = await requestTime();
   const isEmpty = open.length === 0 && closed.length === 0;
 
   return (
@@ -19,8 +22,8 @@ export default async function Home() {
         </p>
       ) : (
         <>
-          <PollSection title="진행 중" polls={open} emptyText="진행 중인 투표가 없어요." />
-          <PollSection title="마감" polls={closed} emptyText="마감된 투표가 없어요." />
+          <PollSection title="진행 중" polls={open} now={now} emptyText="진행 중인 투표가 없어요." />
+          <PollSection title="마감" polls={closed} now={now} emptyText="마감된 투표가 없어요." />
         </>
       )}
 
@@ -46,10 +49,12 @@ export default async function Home() {
 function PollSection({
   title,
   polls,
+  now,
   emptyText,
 }: {
   title: string;
   polls: PollSummary[];
+  now: number;
   emptyText: string;
 }) {
   return (
@@ -65,7 +70,10 @@ function PollSection({
                 href={`/polls/${poll.id}`}
                 className="flex items-center justify-between gap-3 rounded-xl border border-line px-4 py-3"
               >
-                <span className="min-w-0 break-words">{poll.question}</span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="break-words">{poll.question}</span>
+                  <ListTiming poll={poll} now={now} />
+                </span>
                 {poll.hasVoted && (
                   <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent">
                     투표 완료

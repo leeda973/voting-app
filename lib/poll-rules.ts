@@ -53,10 +53,23 @@ export type PollList = {
 const newestFirst = (a: PollSummary, b: PollSummary) =>
   Date.parse(b.createdAt) - Date.parse(a.createdAt);
 
+// 진행 중: 마감 시각 있는 투표를 임박순으로 먼저, 없는 투표는 그 아래 최신순
+function openOrder(a: PollSummary, b: PollSummary) {
+  if (a.deadline !== null && b.deadline !== null) return Date.parse(a.deadline) - Date.parse(b.deadline);
+  if (a.deadline !== null) return -1;
+  if (b.deadline !== null) return 1;
+  return newestFirst(a, b);
+}
+
+// 마감: 마감된 때의 최신순
+const recentlyClosedFirst = (a: PollSummary, b: PollSummary) =>
+  Date.parse(b.closedAt ?? b.createdAt) - Date.parse(a.closedAt ?? a.createdAt);
+
+// polls의 status·closedAt은 실제 상태여야 한다(effectivePollState로 계산한 값)
 export function groupPollsByStatus(polls: PollSummary[]): PollList {
   return {
-    open: polls.filter((p) => p.status === "open").sort(newestFirst),
-    closed: polls.filter((p) => p.status === "closed").sort(newestFirst),
+    open: polls.filter((p) => p.status === "open").sort(openOrder),
+    closed: polls.filter((p) => p.status === "closed").sort(recentlyClosedFirst),
   };
 }
 
@@ -162,11 +175,30 @@ export function toKstInputValue(ms: number): string {
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const kstYear = (ms: number) => new Date(ms + KST_OFFSET_MS).getUTCFullYear();
 
-// UTC ISO 시각을 기기 시간대와 상관없이 한국 시간 "9월 27일(일) 18:00"으로
-export function formatKstDateTime(iso: string): string {
-  const kst = new Date(Date.parse(iso) + KST_OFFSET_MS);
-  return `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일(${WEEKDAYS[kst.getUTCDay()]}) ${pad2(kst.getUTCHours())}:${pad2(kst.getUTCMinutes())}`;
+// UTC ISO 시각을 기기 시간대와 상관없이 한국 시간 "9월 27일(일) 18:00"으로.
+// now를 넘기면 한국 시간 연도가 다를 때 "2025년 "을 앞에 붙인다. weekday: false면 요일을 뺀다(목록용).
+export function formatKstDateTime(iso: string, options: { now?: number; weekday?: boolean } = {}): string {
+  const ms = Date.parse(iso);
+  const kst = new Date(ms + KST_OFFSET_MS);
+  const year = options.now !== undefined && kstYear(options.now) !== kstYear(ms) ? `${kst.getUTCFullYear()}년 ` : "";
+  const weekday = options.weekday === false ? "" : `(${WEEKDAYS[kst.getUTCDay()]})`;
+  return `${year}${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일${weekday} ${pad2(kst.getUTCHours())}:${pad2(kst.getUTCMinutes())}`;
+}
+
+const HOUR_MS = 60 * MINUTE_MS;
+
+// 마감 시각까지 남은 시간 문구와 강조 여부(24시간 미만이면 강조).
+// 일·시간은 내림, 분은 올림(최소 1분). 분 올림이 60분이면 "1시간"이다. 마감 시각이 되면 "마감됨"이다.
+export function remainingTime(deadline: string, now: number): { label: string; urgent: boolean } {
+  const left = Date.parse(deadline) - now;
+  if (left <= 0) return { label: "마감됨", urgent: false };
+  const urgent = left < DAY_MS;
+  if (left >= DAY_MS) return { label: `${Math.floor(left / DAY_MS)}일 남음`, urgent };
+  if (left >= HOUR_MS) return { label: `${Math.floor(left / HOUR_MS)}시간 남음`, urgent };
+  const minutes = Math.ceil(left / MINUTE_MS);
+  return { label: minutes === 60 ? "1시간 남음" : `${minutes}분 남음`, urgent };
 }
 
 // ── 투표 상세 ──
