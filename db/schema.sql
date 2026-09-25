@@ -8,11 +8,15 @@ CREATE TABLE IF NOT EXISTS polls (
   status     text        NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
   created_at timestamptz NOT NULL DEFAULT now(),
   closed_at  timestamptz,
-  -- 마감 시각은 마감된 투표에만 있다
+  -- closed_at(관리자가 마감한 시각)은 관리자가 마감한 투표에만 있다
   CHECK ((status = 'closed') = (closed_at IS NOT NULL))
 );
 
 CREATE INDEX IF NOT EXISTS polls_created_at_idx ON polls (created_at DESC);
+
+-- 마감 시각(Deadline). NULL이면 마감 시각이 없다. 지나면 조회할 때 마감으로 판단한다(ADR 0002).
+-- closed_at(관리자가 실제로 마감한 시각)과 다른 열이다.
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS closes_at timestamptz;
 
 -- 선택지(Option): 한 투표에 속한 답 하나
 CREATE TABLE IF NOT EXISTS options (

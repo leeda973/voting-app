@@ -32,6 +32,10 @@ npm run db:schema
 
 Neon 콘솔의 SQL Editor에 `db/schema.sql` 내용을 붙여 넣어 실행해도 됩니다.
 
+### 스키마 변경 기록
+
+- 2026-09-25: `polls`에 `closes_at`(마감 시각, NULL 허용) 열 추가. `schema.sql`의 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`가 이미 있는 테이블에도 적용하므로 `npm run db:schema`를 다시 실행하면 됩니다. 기존 투표는 마감 시각 없이(NULL) 그대로 유지됩니다.
+
 ## 개발
 
 ```bash

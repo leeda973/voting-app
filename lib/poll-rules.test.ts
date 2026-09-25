@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   canViewResult,
   decideVote,
+  effectiveClosedAt,
+  effectiveStatus,
   groupPollsByStatus,
   tallyResult,
   validatePollInput,
@@ -13,6 +15,8 @@ function poll(overrides: Partial<PollSummary> & Pick<PollSummary, "id">): PollSu
     question: "질문",
     status: "open",
     createdAt: "2026-09-01T00:00:00.000Z",
+    deadline: null,
+    closedAt: null,
     hasVoted: false,
     ...overrides,
   };
@@ -232,5 +236,79 @@ describe("tallyResult", () => {
       ["b", 0],
       ["c", 2],
     ]);
+  });
+});
+
+describe("effectiveStatus", () => {
+  const deadline = "2026-09-27T09:00:00.000Z";
+  const at = Date.parse(deadline);
+
+  it("마감 시각이 없으면 저장된 상태를 그대로 쓴다", () => {
+    expect(effectiveStatus({ storedStatus: "open", deadline: null }, at)).toBe("open");
+    expect(effectiveStatus({ storedStatus: "closed", deadline: null }, at)).toBe("closed");
+  });
+
+  it("마감 시각 1밀리초 전에는 진행 중이다", () => {
+    expect(effectiveStatus({ storedStatus: "open", deadline }, at - 1)).toBe("open");
+  });
+
+  it("마감 시각 정각에는 마감이다", () => {
+    expect(effectiveStatus({ storedStatus: "open", deadline }, at)).toBe("closed");
+  });
+
+  it("마감 시각 1밀리초 후에는 마감이다", () => {
+    expect(effectiveStatus({ storedStatus: "open", deadline }, at + 1)).toBe("closed");
+  });
+
+  it("관리자가 마감했으면 마감 시각이 미래여도 마감이다", () => {
+    expect(effectiveStatus({ storedStatus: "closed", deadline }, at - 60_000)).toBe("closed");
+  });
+});
+
+describe("effectiveClosedAt", () => {
+  const deadline = "2026-09-27T09:00:00.000Z";
+  const at = Date.parse(deadline);
+
+  it("관리자가 마감한 시각이 있으면 그 값을 쓴다", () => {
+    const closedAt = "2026-09-26T12:00:00.000Z";
+    expect(effectiveClosedAt({ storedStatus: "closed", closedAt, deadline }, at + 1)).toBe(closedAt);
+  });
+
+  it("마감 시각 없이 관리자가 마감했으면 관리자가 마감한 시각이다", () => {
+    const closedAt = "2026-09-26T12:00:00.000Z";
+    expect(effectiveClosedAt({ storedStatus: "closed", closedAt, deadline: null }, at)).toBe(closedAt);
+  });
+
+  it("마감 시각이 지나 마감됐으면 마감 시각 값이다", () => {
+    expect(effectiveClosedAt({ storedStatus: "open", closedAt: null, deadline }, at + 1)).toBe(deadline);
+  });
+
+  it("진행 중이면 없다", () => {
+    expect(effectiveClosedAt({ storedStatus: "open", closedAt: null, deadline }, at - 1)).toBeNull();
+    expect(effectiveClosedAt({ storedStatus: "open", closedAt: null, deadline: null }, at)).toBeNull();
+  });
+});
+
+describe("실제 상태와 기존 규칙의 조합", () => {
+  const deadline = "2026-09-27T09:00:00.000Z";
+  const after = Date.parse(deadline) + 1;
+
+  it("마감 시각이 지난 투표에는 표를 남길 수 없다", () => {
+    const status = effectiveStatus({ storedStatus: "open", deadline }, after);
+    expect(decideVote({ status, hasVoted: false, optionBelongsToPoll: true })).toEqual({
+      ok: false,
+      reason: "poll_closed",
+    });
+  });
+
+  it("마감 시각이 지난 투표는 표를 남기지 않아도 결과를 볼 수 있다", () => {
+    const status = effectiveStatus({ storedStatus: "open", deadline }, after);
+    expect(canViewResult({ status, hasVoted: false, isAdmin: false })).toBe(true);
+  });
+
+  it("마감 시각이 없는 진행 중 투표는 지금과 같다(표 가능, 표 전에는 결과 비공개)", () => {
+    const status = effectiveStatus({ storedStatus: "open", deadline: null }, after);
+    expect(decideVote({ status, hasVoted: false, optionBelongsToPoll: true })).toEqual({ ok: true });
+    expect(canViewResult({ status, hasVoted: false, isAdmin: false })).toBe(false);
   });
 });
