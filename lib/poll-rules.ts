@@ -274,8 +274,14 @@ export type Viewer = { voterId: string | null; isAdmin: boolean };
 
 // 서버 시계가 조금 늦어도 다시 그렸을 때 마감으로 보이도록 마감 시각보다 조금 늦게 다시 그린다
 const REFRESH_GRACE_MS = 1000;
-// 브라우저 타이머는 약 24.8일이 넘는 지연을 즉시 실행하므로, 먼 마감 시각은 가까워진 뒤에 예약한다
-const REFRESH_HORIZON_MS = DAY_MS;
+// 브라우저 타이머는 약 24.8일이 넘는 지연을 즉시 실행하므로, 먼 마감 시각은 가까워진 뒤에 예약한다.
+// 화면은 1분마다 다시 계산하므로 한도는 24.8일보다 작기만 하면 된다("임박" 기준과는 무관하다).
+const REFRESH_HORIZON_MS = 24 * HOUR_MS;
+
+// 열어 둔 화면이 지켜볼 마감 시각: 진행 중이고 마감 시각이 있는 투표의 것
+export function watchedDeadlines(polls: EffectivePollState[]): string[] {
+  return polls.flatMap((poll) => (poll.status === "open" && poll.deadline ? [poll.deadline] : []));
+}
 
 // 화면의 진행 중 투표 마감 시각들 중 가장 가까운 앞으로의 것에 맞춰, 몇 ms 뒤 화면을 다시 그릴지.
 // 앞으로의 마감 시각이 없거나 24시간보다 멀면 null(다시 그리지 않는다). 이미 지난 마감 시각은 무시한다.

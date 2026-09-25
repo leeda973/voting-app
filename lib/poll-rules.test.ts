@@ -12,6 +12,7 @@ import {
   tallyResult,
   toKstInputValue,
   validatePollInput,
+  watchedDeadlines,
   type PollSummary,
 } from "./poll-rules";
 
@@ -537,5 +538,17 @@ describe("nextRefreshDelay", () => {
   it("24시간보다 먼 마감 시각은 지금 예약하지 않는다(타이머 한계, 1분 갱신 때 다시 계산)", () => {
     expect(nextRefreshDelay([at(24 * HOUR + 1)], now)).toBeNull();
     expect(nextRefreshDelay([at(24 * HOUR)], now)).toBe(24 * HOUR + 1000);
+  });
+});
+
+describe("watchedDeadlines", () => {
+  it("진행 중이고 마감 시각이 있는 투표의 마감 시각만 고른다", () => {
+    expect(
+      watchedDeadlines([
+        { status: "open", deadline: "2026-09-27T09:00:00.000Z", closedAt: null },
+        { status: "open", deadline: null, closedAt: null },
+        { status: "closed", deadline: "2026-09-20T00:00:00.000Z", closedAt: "2026-09-20T00:00:00.000Z" },
+      ]),
+    ).toEqual(["2026-09-27T09:00:00.000Z"]);
   });
 });

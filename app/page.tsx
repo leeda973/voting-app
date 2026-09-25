@@ -5,7 +5,7 @@ import { ListTiming } from "@/app/components/poll-timing";
 import { currentViewer } from "@/lib/auth";
 import { requestTime } from "@/lib/clock";
 import { listPolls } from "@/lib/polls";
-import type { PollSummary } from "@/lib/poll-rules";
+import { watchedDeadlines, type PollSummary } from "@/lib/poll-rules";
 
 export default async function Home() {
   const [viewer, now] = await Promise.all([currentViewer(), requestTime()]);
@@ -22,7 +22,7 @@ export default async function Home() {
         </p>
       ) : (
         <>
-          <LiveNow initialNow={now} deadlines={open.flatMap((poll) => (poll.deadline ? [poll.deadline] : []))}>
+          <LiveNow initialNow={now} deadlines={watchedDeadlines(open)}>
             <PollSection title="진행 중" polls={open} emptyText="진행 중인 투표가 없어요." />
             <PollSection title="마감" polls={closed} emptyText="마감된 투표가 없어요." />
           </LiveNow>

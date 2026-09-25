@@ -3,7 +3,7 @@ import { currentViewer } from "@/lib/auth";
 import { requestTime } from "@/lib/clock";
 import { LiveNow } from "@/app/components/live-now";
 import { DetailTiming } from "@/app/components/poll-timing";
-import { decideVote } from "@/lib/poll-rules";
+import { decideVote, watchedDeadlines } from "@/lib/poll-rules";
 import { getPollDetail, getResult } from "@/lib/polls";
 import { AdminActions } from "./admin-actions";
 import { ResultView } from "./result-view";
@@ -34,10 +34,8 @@ export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
   const result = poll.canViewResult ? await getResult(poll) : null;
 
   // 진행 중이고 마감 시각이 있으면, 열어 둔 동안 마감 시각이 되는 순간 화면을 다시 그려 마감 상태로 바꾼다
-  const liveDeadlines = poll.status === "open" && poll.deadline ? [poll.deadline] : [];
-
   return (
-    <LiveNow initialNow={now} deadlines={liveDeadlines}>
+    <LiveNow initialNow={now} deadlines={watchedDeadlines([poll])}>
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
         <BackLink />
         <p className="mt-6 text-sm text-muted">
