@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ENTRY_COOKIE, hasEntrySession } from "@/lib/auth";
+import { ADMIN_COOKIE, ENTRY_COOKIE, hasAppAccess } from "@/lib/auth";
 
-// 입장 세션이 없으면 화면은 입장 화면으로, API는 401로 막는다.
+// 입장 세션(또는 관리자 세션)이 없으면 화면은 입장 화면으로, API는 401로 막는다.
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const { cookies } = request;
 
-  if (await hasEntrySession(request.cookies.get(ENTRY_COOKIE)?.value)) {
+  if (await hasAppAccess(cookies.get(ENTRY_COOKIE)?.value, cookies.get(ADMIN_COOKIE)?.value)) {
     return NextResponse.next();
   }
 
@@ -22,6 +23,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 입장 화면과 입장 API, 정적 파일은 입장 없이 열린다
-  matcher: ["/((?!enter$|api/entry$|_next/static|_next/image|favicon\\.ico$).*)"],
+  // 입장 화면·입장 API, 관리자 화면·관리자 세션 API, 정적 파일은 입장 없이 열린다
+  matcher: [
+    "/((?!enter$|api/entry$|admin$|api/admin/session$|_next/static|_next/image|favicon\\.ico$).*)",
+  ],
 };
