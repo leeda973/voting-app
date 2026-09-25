@@ -269,3 +269,19 @@ export function tallyResult(
 
 // 지금 요청한 브라우저: 투표자 식별 쿠키 값(없으면 null)과 관리자 여부
 export type Viewer = { voterId: string | null; isAdmin: boolean };
+
+// ── 열어 둔 화면의 마감 전환 ──
+
+// 서버 시계가 조금 늦어도 다시 그렸을 때 마감으로 보이도록 마감 시각보다 조금 늦게 다시 그린다
+const REFRESH_GRACE_MS = 1000;
+// 브라우저 타이머는 약 24.8일이 넘는 지연을 즉시 실행하므로, 먼 마감 시각은 가까워진 뒤에 예약한다
+const REFRESH_HORIZON_MS = DAY_MS;
+
+// 화면의 진행 중 투표 마감 시각들 중 가장 가까운 앞으로의 것에 맞춰, 몇 ms 뒤 화면을 다시 그릴지.
+// 앞으로의 마감 시각이 없거나 24시간보다 멀면 null(다시 그리지 않는다). 이미 지난 마감 시각은 무시한다.
+export function nextRefreshDelay(deadlines: string[], now: number): number | null {
+  const upcoming = deadlines.map((deadline) => Date.parse(deadline) - now).filter((left) => left > 0);
+  if (upcoming.length === 0) return null;
+  const soonest = Math.min(...upcoming);
+  return soonest > REFRESH_HORIZON_MS ? null : soonest + REFRESH_GRACE_MS;
+}

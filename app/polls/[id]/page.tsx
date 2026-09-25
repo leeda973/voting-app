@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { currentViewer } from "@/lib/auth";
 import { requestTime } from "@/lib/clock";
+import { LiveNow } from "@/app/components/live-now";
 import { DetailTiming } from "@/app/components/poll-timing";
 import { decideVote } from "@/lib/poll-rules";
 import { getPollDetail, getResult } from "@/lib/polls";
@@ -32,27 +33,32 @@ export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
   }).ok;
   const result = poll.canViewResult ? await getResult(poll) : null;
 
+  // 진행 중이고 마감 시각이 있으면, 열어 둔 동안 마감 시각이 되는 순간 화면을 다시 그려 마감 상태로 바꾼다
+  const liveDeadlines = poll.status === "open" && poll.deadline ? [poll.deadline] : [];
+
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
-      <BackLink />
-      <p className="mt-6 text-sm text-muted">
-        <DetailTiming poll={poll} now={now} />
-      </p>
-      <h1 className="mt-1 text-2xl font-bold break-words">{poll.question}</h1>
+    <LiveNow initialNow={now} deadlines={liveDeadlines}>
+      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+        <BackLink />
+        <p className="mt-6 text-sm text-muted">
+          <DetailTiming poll={poll} />
+        </p>
+        <h1 className="mt-1 text-2xl font-bold break-words">{poll.question}</h1>
 
-      {canVote && <VoteForm pollId={poll.id} options={poll.options} />}
+        {canVote && <VoteForm pollId={poll.id} options={poll.options} />}
 
-      {result && (
-        <>
-          {canVote && (
-            <h2 className="mt-10 text-sm font-semibold text-muted">현재 결과 (관리자에게만 보여요)</h2>
-          )}
-          <ResultView key={`${result.status}-${result.myOptionId}`} result={result} />
-        </>
-      )}
+        {result && (
+          <>
+            {canVote && (
+              <h2 className="mt-10 text-sm font-semibold text-muted">현재 결과 (관리자에게만 보여요)</h2>
+            )}
+            <ResultView key={`${result.status}-${result.myOptionId}`} result={result} />
+          </>
+        )}
 
-      {poll.isAdmin && <AdminActions pollId={poll.id} status={poll.status} />}
-    </main>
+        {poll.isAdmin && <AdminActions pollId={poll.id} status={poll.status} />}
+      </main>
+    </LiveNow>
   );
 }
 

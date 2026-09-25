@@ -7,6 +7,7 @@ import {
   effectiveStatus,
   formatKstDateTime,
   groupPollsByStatus,
+  nextRefreshDelay,
   remainingTime,
   tallyResult,
   toKstInputValue,
@@ -513,5 +514,28 @@ describe("마감 시각으로 마감된 투표와 관리자가 마감한 투표�
       ["deadline-late", "2026-09-27T09:00:00.000Z"],
       ["manual-early", "2026-09-26T00:00:00.000Z"],
     ]);
+  });
+});
+
+describe("nextRefreshDelay", () => {
+  const now = Date.parse("2026-09-25T00:00:00.000Z");
+  const at = (ms: number) => new Date(now + ms).toISOString();
+  const HOUR = 60 * 60 * 1000;
+
+  it("마감 시각이 없으면 다시 그리지 않는다", () => {
+    expect(nextRefreshDelay([], now)).toBeNull();
+  });
+
+  it("이미 지난 마감 시각만 있으면 다시 그리지 않는다(무한 반복 방지)", () => {
+    expect(nextRefreshDelay([at(-1000), at(0)], now)).toBeNull();
+  });
+
+  it("가장 가까운 앞으로의 마감 시각에 여유 1초를 더한 뒤 다시 그린다", () => {
+    expect(nextRefreshDelay([at(3 * HOUR), at(-5000), at(90_000)], now)).toBe(90_000 + 1000);
+  });
+
+  it("24시간보다 먼 마감 시각은 지금 예약하지 않는다(타이머 한계, 1분 갱신 때 다시 계산)", () => {
+    expect(nextRefreshDelay([at(24 * HOUR + 1)], now)).toBeNull();
+    expect(nextRefreshDelay([at(24 * HOUR)], now)).toBe(24 * HOUR + 1000);
   });
 });

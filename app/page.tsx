@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LogoutButton } from "@/app/admin/logout-button";
+import { LiveNow } from "@/app/components/live-now";
 import { ListTiming } from "@/app/components/poll-timing";
 import { currentViewer } from "@/lib/auth";
 import { requestTime } from "@/lib/clock";
@@ -21,8 +22,10 @@ export default async function Home() {
         </p>
       ) : (
         <>
-          <PollSection title="진행 중" polls={open} now={now} emptyText="진행 중인 투표가 없어요." />
-          <PollSection title="마감" polls={closed} now={now} emptyText="마감된 투표가 없어요." />
+          <LiveNow initialNow={now} deadlines={open.flatMap((poll) => (poll.deadline ? [poll.deadline] : []))}>
+            <PollSection title="진행 중" polls={open} emptyText="진행 중인 투표가 없어요." />
+            <PollSection title="마감" polls={closed} emptyText="마감된 투표가 없어요." />
+          </LiveNow>
         </>
       )}
 
@@ -48,12 +51,10 @@ export default async function Home() {
 function PollSection({
   title,
   polls,
-  now,
   emptyText,
 }: {
   title: string;
   polls: PollSummary[];
-  now: number;
   emptyText: string;
 }) {
   return (
@@ -71,7 +72,7 @@ function PollSection({
               >
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="break-words">{poll.question}</span>
-                  <ListTiming poll={poll} now={now} />
+                  <ListTiming poll={poll} />
                 </span>
                 {poll.hasVoted && (
                   <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent">
