@@ -1,9 +1,9 @@
+import { currentVoterId } from "@/lib/auth";
 import { listPolls } from "@/lib/polls";
 
 export async function GET() {
   try {
-    // 브라우저 식별 쿠키는 티켓 02에서 생긴다. 그 전까지는 hasVoted가 모두 false다.
-    return Response.json(await listPolls(null));
+    return Response.json(await listPolls(await currentVoterId()));
   } catch (error) {
     console.error(error);
     return Response.json(

@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { currentVoterId } from "@/lib/auth";
 import { listPolls } from "@/lib/polls";
 import type { PollSummary } from "@/lib/poll-rules";
 
 export default async function Home() {
-  const { open, closed } = await listPolls(null);
+  const { open, closed } = await listPolls(await currentVoterId());
   const isEmpty = open.length === 0 && closed.length === 0;
 
   return (
