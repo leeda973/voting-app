@@ -18,7 +18,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/polls/[id]/
     const optionId = typeof body?.optionId === "string" ? body.optionId : "";
 
     const viewer = await currentViewer();
-    const poll = await getPollDetail(id, viewer);
+    const poll = await getPollDetail(id, viewer, Date.now());
     if (!poll) return notFoundResponse();
 
     const decision = decide(poll, optionId);
@@ -27,7 +27,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/polls/[id]/
     const voterId = await ensureVoterId();
     if (!(await castVote(id, optionId, voterId))) {
       // 확인과 저장 사이에 상태가 바뀌었다(동시 투표, 마감, 삭제). 최신 상태로 사유를 다시 판단한다.
-      const fresh = await getPollDetail(id, { ...viewer, voterId });
+      const fresh = await getPollDetail(id, { ...viewer, voterId }, Date.now());
       if (!fresh) return notFoundResponse();
       const retry = decide(fresh, optionId);
       if (!retry.ok) return voteRejectedResponse(retry.reason);
@@ -36,7 +36,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/polls/[id]/
       return voteRejectedResponse(fresh.myOptionId !== null ? "already_voted" : "poll_closed");
     }
 
-    const voted = await getPollDetail(id, { ...viewer, voterId });
+    const voted = await getPollDetail(id, { ...viewer, voterId }, Date.now());
     if (!voted) return notFoundResponse();
     return Response.json(await getResult(voted), { status: 201 });
   } catch (error) {

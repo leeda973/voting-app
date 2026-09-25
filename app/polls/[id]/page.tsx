@@ -10,7 +10,9 @@ import { VoteForm } from "./vote-form";
 
 export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
   const { id } = await params;
-  const poll = await getPollDetail(id, await currentViewer());
+  // 상태 판단과 남은 시간 표시에 같은 요청 시각을 쓴다
+  const now = await requestTime();
+  const poll = await getPollDetail(id, await currentViewer(), now);
 
   if (!poll) {
     return (
@@ -29,7 +31,6 @@ export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
     optionBelongsToPoll: true,
   }).ok;
   const result = poll.canViewResult ? await getResult(poll) : null;
-  const now = await requestTime();
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">

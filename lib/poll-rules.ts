@@ -28,10 +28,12 @@ export function effectiveClosedAt(
 }
 
 // 저장된 값(closedAt은 관리자가 마감한 시각)으로 화면과 API에 내보낼 상태·마감된 때·마감 시각을 만든다
+export type EffectivePollState = { status: PollStatus; closedAt: string | null; deadline: string | null };
+
 export function effectivePollState(
   poll: StoredPollState & { closedAt: string | null },
   now: number,
-): { status: PollStatus; closedAt: string | null; deadline: string | null } {
+): EffectivePollState {
   return { status: effectiveStatus(poll, now), closedAt: effectiveClosedAt(poll, now), deadline: poll.deadline };
 }
 
@@ -134,7 +136,8 @@ export function validatePollInput(
 // 마감 시각은 한국 시간(UTC+9, 서머타임 없음) 분 단위로 입력받고, 저장·전달은 UTC ISO로 한다.
 
 const MINUTE_MS = 60_000;
-export const DAY_MS = 24 * 60 * MINUTE_MS;
+const HOUR_MS = 60 * MINUTE_MS;
+export const DAY_MS = 24 * HOUR_MS;
 const KST_OFFSET_MS = 9 * 60 * MINUTE_MS;
 const DEADLINE_MIN_MINUTES = 10;
 const DEADLINE_MAX_DAYS = 30;
@@ -186,8 +189,6 @@ export function formatKstDateTime(iso: string, options: { now?: number; weekday?
   const weekday = options.weekday === false ? "" : `(${WEEKDAYS[kst.getUTCDay()]})`;
   return `${year}${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일${weekday} ${pad2(kst.getUTCHours())}:${pad2(kst.getUTCMinutes())}`;
 }
-
-const HOUR_MS = 60 * MINUTE_MS;
 
 // 마감 시각까지 남은 시간 문구와 강조 여부(24시간 미만이면 강조).
 // 일·시간은 내림, 분은 올림(최소 1분). 분 올림이 60분이면 "1시간"이다. 마감 시각이 되면 "마감됨"이다.

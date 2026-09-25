@@ -13,7 +13,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/polls/[id]
     if (outcome === "not_found") return notFoundResponse();
     if (outcome === "already_closed") return errorResponse(409, "already_closed", "이미 마감된 투표예요.");
 
-    const poll = await getPollDetail(id, await currentViewer());
+    const poll = await getPollDetail(id, await currentViewer(), Date.now());
     return poll ? Response.json(poll) : notFoundResponse();
   } catch (error) {
     return serverErrorResponse(error, "투표를 마감하지 못했어요. 잠시 후 다시 시도해 주세요.");

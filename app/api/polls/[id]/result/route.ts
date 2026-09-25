@@ -5,7 +5,7 @@ import { getPollDetail, getResult } from "@/lib/polls";
 export async function GET(_request: Request, ctx: RouteContext<"/api/polls/[id]/result">) {
   try {
     const { id } = await ctx.params;
-    const poll = await getPollDetail(id, await currentViewer());
+    const poll = await getPollDetail(id, await currentViewer(), Date.now());
     if (!poll) return notFoundResponse();
     if (!poll.canViewResult) return resultHiddenResponse();
     return Response.json(await getResult(poll));

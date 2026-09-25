@@ -41,11 +41,11 @@ describe("groupPollsByStatus", () => {
     });
   });
 
-  it("각 목록을 최신순으로 정렬한다", () => {
+  it("마감 시각 없는 진행 중 투표는 최신순, 마감 투표는 마감된 때 최신순이다", () => {
     const older = poll({ id: "old", createdAt: "2026-09-01T00:00:00.000Z" });
     const newer = poll({ id: "new", createdAt: "2026-09-02T00:00:00.000Z" });
-    const olderClosed = poll({ id: "old-c", status: "closed", createdAt: "2026-08-01T00:00:00.000Z" });
-    const newerClosed = poll({ id: "new-c", status: "closed", createdAt: "2026-08-02T00:00:00.000Z" });
+    const olderClosed = poll({ id: "old-c", status: "closed", createdAt: "2026-08-01T00:00:00.000Z", closedAt: "2026-08-03T00:00:00.000Z" });
+    const newerClosed = poll({ id: "new-c", status: "closed", createdAt: "2026-08-02T00:00:00.000Z", closedAt: "2026-08-04T00:00:00.000Z" });
 
     const result = groupPollsByStatus([older, olderClosed, newer, newerClosed]);
 
@@ -463,22 +463,18 @@ describe("remainingTime", () => {
 });
 
 describe("groupPollsByStatus 정렬", () => {
-  const now = Date.parse("2026-09-25T00:00:00.000Z");
-  const classify = (polls: PollSummary[]) => groupPollsByStatus(polls);
-
   it("진행 중: 마감 시각 있는 투표를 임박순으로 먼저, 없는 투표는 아래에 최신순", () => {
-    const { open } = classify([
+    const { open } = groupPollsByStatus([
       poll({ id: "none-old", createdAt: "2026-09-01T00:00:00.000Z" }),
       poll({ id: "late", deadline: "2026-09-30T00:00:00.000Z", createdAt: "2026-09-24T00:00:00.000Z" }),
       poll({ id: "none-new", createdAt: "2026-09-20T00:00:00.000Z" }),
       poll({ id: "soon", deadline: "2026-09-26T00:00:00.000Z", createdAt: "2026-09-02T00:00:00.000Z" }),
     ]);
     expect(open.map((p) => p.id)).toEqual(["soon", "late", "none-new", "none-old"]);
-    expect(now).toBeLessThan(Date.parse("2026-09-26T00:00:00.000Z"));
   });
 
   it("마감: 마감된 때의 최신순(만든 순서와 무관)", () => {
-    const { closed } = classify([
+    const { closed } = groupPollsByStatus([
       poll({ id: "made-new-closed-early", status: "closed", createdAt: "2026-09-20T00:00:00.000Z", closedAt: "2026-09-21T00:00:00.000Z" }),
       poll({ id: "made-old-closed-late", status: "closed", createdAt: "2026-09-01T00:00:00.000Z", closedAt: "2026-09-24T00:00:00.000Z" }),
     ]);
@@ -500,5 +496,22 @@ describe("formatKstDateTime 옵션", () => {
 
   it("연도는 한국 시간 기준이다(UTC로는 작년 12월 31일 15시 = 한국 1월 1일 0시)", () => {
     expect(formatKstDateTime("2025-12-31T15:00:00.000Z", { now })).toBe("1월 1일(목) 00:00");
+  });
+});
+
+describe("마감 시각으로 마감된 투표와 관리자가 마감한 투표의 정렬", () => {
+  it("마감된 때(마감 시각 또는 관리자가 마감한 시각)로 섞어서 최신순으로 놓는다", () => {
+    const now = Date.parse("2026-09-27T12:00:00.000Z");
+    const stored = [
+      { ...poll({ id: "manual-early" }), storedStatus: "closed" as const, deadline: null, closedAt: "2026-09-26T00:00:00.000Z" },
+      { ...poll({ id: "deadline-late" }), storedStatus: "open" as const, deadline: "2026-09-27T09:00:00.000Z", closedAt: null },
+      { ...poll({ id: "manual-before-deadline" }), storedStatus: "closed" as const, deadline: "2026-09-30T00:00:00.000Z", closedAt: "2026-09-27T10:00:00.000Z" },
+    ];
+    const { closed } = groupPollsByStatus(stored.map((p) => ({ ...p, ...effectivePollState(p, now) })));
+    expect(closed.map((p) => [p.id, p.closedAt])).toEqual([
+      ["manual-before-deadline", "2026-09-27T10:00:00.000Z"],
+      ["deadline-late", "2026-09-27T09:00:00.000Z"],
+      ["manual-early", "2026-09-26T00:00:00.000Z"],
+    ]);
   });
 });

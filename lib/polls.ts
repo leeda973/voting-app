@@ -44,7 +44,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (id: string) => UUID.test(id);
 
 // voterId가 없으면(아직 브라우저 식별 쿠키가 없으면) 모든 투표가 hasVoted: false다.
-export async function listPolls(voterId: string | null): Promise<PollList> {
+// now는 실제 상태를 판단할 요청 시각이다. 화면은 같은 값으로 남은 시간을 표시해야 어긋나지 않는다.
+export async function listPolls(voterId: string | null, now: number): Promise<PollList> {
   // 빌드 시점에 미리 렌더링하지 않고 요청마다 DB에서 새로 읽는다
   await connection();
   const sql = getSql();
@@ -56,7 +57,6 @@ export async function listPolls(voterId: string | null): Promise<PollList> {
     FROM polls p
   `) as (PollRow & { has_voted: boolean })[];
 
-  const now = Date.now();
   return groupPollsByStatus(
     rows.map((r) => ({
       id: r.id,
@@ -85,7 +85,8 @@ export async function createPoll(input: PollInput): Promise<string> {
   return id;
 }
 
-export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDetail | null> {
+// now는 실제 상태를 판단할 요청 시각이다(listPolls와 같다).
+export async function getPollDetail(id: string, viewer: Viewer, now: number): Promise<PollDetail | null> {
   await connection();
   if (!isUuid(id)) return null;
 
@@ -100,7 +101,7 @@ export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDet
   if (!poll) return null;
 
   const myOptionId = myVotes[0]?.option_id ?? null;
-  const { status, closedAt, deadline } = pollState(poll, Date.now());
+  const { status, closedAt, deadline } = pollState(poll, now);
   return {
     id: poll.id,
     question: poll.question,

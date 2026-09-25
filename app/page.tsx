@@ -7,9 +7,8 @@ import { listPolls } from "@/lib/polls";
 import type { PollSummary } from "@/lib/poll-rules";
 
 export default async function Home() {
-  const viewer = await currentViewer();
-  const { open, closed } = await listPolls(viewer.voterId);
-  const now = await requestTime();
+  const [viewer, now] = await Promise.all([currentViewer(), requestTime()]);
+  const { open, closed } = await listPolls(viewer.voterId, now);
   const isEmpty = open.length === 0 && closed.length === 0;
 
   return (

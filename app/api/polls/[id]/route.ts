@@ -5,7 +5,7 @@ import { deletePoll, getPollDetail } from "@/lib/polls";
 export async function GET(_request: Request, ctx: RouteContext<"/api/polls/[id]">) {
   try {
     const { id } = await ctx.params;
-    const poll = await getPollDetail(id, await currentViewer());
+    const poll = await getPollDetail(id, await currentViewer(), Date.now());
     return poll ? Response.json(poll) : notFoundResponse();
   } catch (error) {
     return serverErrorResponse(error);
