@@ -91,6 +91,17 @@ export async function currentVoterId(): Promise<string | null> {
   return (await cookies()).get(VOTER_COOKIE)?.value ?? null;
 }
 
+// 표를 남길 때 쓴다. 식별 쿠키는 입장할 때 발급되지만, 지워졌다면 여기서 새로 발급한다.
+export async function ensureVoterId(): Promise<string> {
+  const cookieStore = await cookies();
+  const existing = cookieStore.get(VOTER_COOKIE)?.value;
+  if (existing) return existing;
+
+  const voterId = crypto.randomUUID();
+  cookieStore.set(VOTER_COOKIE, voterId, cookieOptions(VOTER_MAX_AGE_SECONDS));
+  return voterId;
+}
+
 // 지금 요청한 브라우저가 누구인지(투표자 식별, 관리자 여부)
 export async function currentViewer(): Promise<{ voterId: string | null; isAdmin: boolean }> {
   const [voterId, admin] = await Promise.all([currentVoterId(), isAdmin()]);

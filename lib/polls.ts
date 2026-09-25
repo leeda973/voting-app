@@ -91,3 +91,21 @@ export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDet
     isAdmin: viewer.isAdmin,
   };
 }
+
+// 표를 저장한다. "진행 중인 투표의, 그 투표에 속한 선택지"일 때만 같은 쿼리 안에서 저장하고,
+// 같은 브라우저의 두 번째 표는 (poll_id, voter_id) 유니크 제약으로 버려진다.
+// 저장했으면 true, 조건에 걸려 저장하지 않았으면 false.
+export async function castVote(pollId: string, optionId: string, voterId: string): Promise<boolean> {
+  if (!isPollId(pollId) || !isPollId(optionId)) return false;
+  const sql = getSql();
+  const rows = await sql`
+    INSERT INTO votes (poll_id, option_id, voter_id)
+    SELECT o.poll_id, o.id, ${voterId}
+    FROM options o
+    JOIN polls p ON p.id = o.poll_id
+    WHERE o.id = ${optionId} AND o.poll_id = ${pollId} AND p.status = 'open'
+    ON CONFLICT (poll_id, voter_id) DO NOTHING
+    RETURNING id
+  `;
+  return rows.length > 0;
+}

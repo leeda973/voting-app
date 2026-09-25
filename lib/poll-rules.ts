@@ -87,3 +87,18 @@ export type PollDetail = {
   canViewResult: boolean;
   isAdmin: boolean;
 };
+
+// ── 투표 가능 여부 ──
+
+export type VoteRejection = "poll_closed" | "already_voted" | "invalid_option";
+
+export function decideVote(input: {
+  status: PollStatus;
+  hasVoted: boolean;
+  optionBelongsToPoll: boolean;
+}): { ok: true } | { ok: false; reason: VoteRejection } {
+  if (input.status === "closed") return { ok: false, reason: "poll_closed" };
+  if (input.hasVoted) return { ok: false, reason: "already_voted" };
+  if (!input.optionBelongsToPoll) return { ok: false, reason: "invalid_option" };
+  return { ok: true };
+}

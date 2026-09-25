@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupPollsByStatus, validatePollInput, type PollSummary } from "./poll-rules";
+import { decideVote, groupPollsByStatus, validatePollInput, type PollSummary } from "./poll-rules";
 
 function poll(overrides: Partial<PollSummary> & Pick<PollSummary, "id">): PollSummary {
   return {
@@ -131,6 +131,40 @@ describe("validatePollInput", () => {
     expect(errorsOf({ question: "", options: ["치킨"] })).toMatchObject({
       question: "질문을 입력해 주세요.",
       options: "선택지를 2개 이상 입력해 주세요.",
+    });
+  });
+});
+
+describe("decideVote", () => {
+  const base = { status: "open" as const, hasVoted: false, optionBelongsToPoll: true };
+
+  it("진행 중이고 처음 투표하며 이 투표의 선택지를 고르면 허용한다", () => {
+    expect(decideVote(base)).toEqual({ ok: true });
+  });
+
+  it("이미 투표했으면 already_voted로 거부한다", () => {
+    expect(decideVote({ ...base, hasVoted: true })).toEqual({ ok: false, reason: "already_voted" });
+  });
+
+  it("마감됐으면 poll_closed로 거부한다", () => {
+    expect(decideVote({ ...base, status: "closed" })).toEqual({ ok: false, reason: "poll_closed" });
+  });
+
+  it("다른 투표의 선택지면 invalid_option으로 거부한다", () => {
+    expect(decideVote({ ...base, optionBelongsToPoll: false })).toEqual({ ok: false, reason: "invalid_option" });
+  });
+
+  it("마감과 이미 투표함이 겹치면 마감을 먼저 알린다", () => {
+    expect(decideVote({ status: "closed", hasVoted: true, optionBelongsToPoll: false })).toEqual({
+      ok: false,
+      reason: "poll_closed",
+    });
+  });
+
+  it("이미 투표함과 잘못된 선택지가 겹치면 이미 투표함을 먼저 알린다", () => {
+    expect(decideVote({ ...base, hasVoted: true, optionBelongsToPoll: false })).toEqual({
+      ok: false,
+      reason: "already_voted",
     });
   });
 });

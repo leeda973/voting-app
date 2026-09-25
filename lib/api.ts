@@ -10,3 +10,14 @@ export function serverErrorResponse(error: unknown, message = "잠시 후 다시
   console.error(error);
   return errorResponse(500, "server_error", message);
 }
+
+const VOTE_REJECTIONS = {
+  poll_closed: { status: 409, message: "마감된 투표라 표를 남길 수 없어요." },
+  already_voted: { status: 409, message: "이미 이 투표에 표를 남겼어요. 표는 바꿀 수 없어요." },
+  invalid_option: { status: 400, message: "선택지를 다시 골라 주세요." },
+} as const;
+
+export function voteRejectedResponse(reason: keyof typeof VOTE_REJECTIONS): Response {
+  const { status, message } = VOTE_REJECTIONS[reason];
+  return errorResponse(status, reason, message);
+}
