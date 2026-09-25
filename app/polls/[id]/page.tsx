@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { currentViewer } from "@/lib/auth";
 import { getPollDetail, getResult } from "@/lib/polls";
+import { AdminActions } from "./admin-actions";
 import { ResultView } from "./result-view";
 import { VoteForm } from "./vote-form";
 
@@ -37,6 +38,8 @@ export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
           <ResultView result={result} />
         </>
       )}
+
+      {poll.isAdmin && <AdminActions pollId={poll.id} status={poll.status} />}
     </main>
   );
 }

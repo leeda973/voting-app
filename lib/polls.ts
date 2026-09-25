@@ -98,6 +98,7 @@ export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDet
 
 // 표를 저장한다. "진행 중인 투표의, 그 투표에 속한 선택지"일 때만 같은 쿼리 안에서 저장하고,
 // 같은 브라우저의 두 번째 표는 (poll_id, voter_id) 유니크 제약으로 버려진다.
+// 투표 행에 FOR SHARE 잠금을 걸어, 동시에 마감이 커밋되면 그 뒤의 상태로 다시 확인한다(마감 이후의 표 방지).
 // 저장했으면 true, 조건에 걸려 저장하지 않았으면 false.
 export async function castVote(pollId: string, optionId: string, voterId: string): Promise<boolean> {
   if (!isPollId(pollId) || !isPollId(optionId)) return false;
@@ -108,6 +109,7 @@ export async function castVote(pollId: string, optionId: string, voterId: string
     FROM options o
     JOIN polls p ON p.id = o.poll_id
     WHERE o.id = ${optionId} AND o.poll_id = ${pollId} AND p.status = 'open'
+    FOR SHARE OF p
     ON CONFLICT (poll_id, voter_id) DO NOTHING
     RETURNING id
   `;
@@ -128,4 +130,19 @@ export async function getResult(poll: PollDetail): Promise<Result> {
     ...tallyResult(poll.options, votesByOption),
     myOptionId: poll.myOptionId,
   };
+}
+
+// 진행 중인 투표만 마감한다. 마감된 투표를 다시 진행 중으로 바꾸는 함수는 없다.
+export async function closePoll(id: string): Promise<"closed" | "already_closed" | "not_found"> {
+  if (!isPollId(id)) return "not_found";
+  const sql = getSql();
+  const closed = await sql`
+    UPDATE polls SET status = 'closed', closed_at = now()
+    WHERE id = ${id} AND status = 'open'
+    RETURNING id
+  `;
+  if (closed.length > 0) return "closed";
+
+  const existing = await sql`SELECT 1 FROM polls WHERE id = ${id}`;
+  return existing.length > 0 ? "already_closed" : "not_found";
 }
