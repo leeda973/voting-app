@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { currentVoterId } from "@/lib/auth";
+import { LogoutButton } from "@/app/admin/logout-button";
+import { currentViewer } from "@/lib/auth";
 import { listPolls } from "@/lib/polls";
 import type { PollSummary } from "@/lib/poll-rules";
 
 export default async function Home() {
-  const { open, closed } = await listPolls(await currentVoterId());
+  const viewer = await currentViewer();
+  const { open, closed } = await listPolls(viewer.voterId);
   const isEmpty = open.length === 0 && closed.length === 0;
 
   return (
@@ -22,10 +24,20 @@ export default async function Home() {
         </>
       )}
 
-      <footer className="mt-16 border-t border-line pt-4 text-center">
-        <Link href="/admin" className="text-sm text-muted underline">
-          관리자
-        </Link>
+      <footer className="mt-16 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-line pt-4 text-sm text-muted">
+        {viewer.isAdmin ? (
+          <>
+            <span className="font-semibold text-accent">관리자로 로그인됨</span>
+            <Link href="/admin" className="underline">
+              관리자 화면
+            </Link>
+            <LogoutButton className="underline disabled:opacity-60" />
+          </>
+        ) : (
+          <Link href="/admin" className="underline">
+            관리자 로그인
+          </Link>
+        )}
       </footer>
     </main>
   );

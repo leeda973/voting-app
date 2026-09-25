@@ -22,7 +22,7 @@ export default async function AdminPage() {
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <h1 className="text-2xl font-bold">관리자</h1>
-      <p className="mt-2 text-muted">관리자 세션은 1일 동안 유지돼요.</p>
+      <p className="mt-2 text-muted">관리자로 로그인됨 · 관리자 세션은 1일 동안 유지돼요.</p>
 
       <div className="mt-8 flex flex-col gap-3">
         <Link
