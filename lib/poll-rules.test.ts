@@ -552,3 +552,33 @@ describe("watchedDeadlines", () => {
     ).toEqual(["2026-09-27T09:00:00.000Z"]);
   });
 });
+
+describe("groupPollsByStatus: 투표 완료한 투표는 아래로", () => {
+  it("진행 중: 투표하지 않은 투표가 먼저, 투표 완료한 투표는 마감이 더 임박해도 아래로", () => {
+    const { open } = groupPollsByStatus([
+      poll({ id: "voted-soon", hasVoted: true, deadline: "2026-09-25T01:00:00.000Z" }),
+      poll({ id: "voted-none", hasVoted: true, createdAt: "2026-09-24T00:00:00.000Z" }),
+      poll({ id: "todo-none", createdAt: "2026-09-20T00:00:00.000Z" }),
+      poll({ id: "todo-late", deadline: "2026-09-30T00:00:00.000Z" }),
+    ]);
+    expect(open.map((p) => p.id)).toEqual(["todo-late", "todo-none", "voted-soon", "voted-none"]);
+  });
+
+  it("각 그룹 안에서는 마감 임박순 → 마감 시각 없는 것 최신순을 지킨다", () => {
+    const { open } = groupPollsByStatus([
+      poll({ id: "voted-none-old", hasVoted: true, createdAt: "2026-09-01T00:00:00.000Z" }),
+      poll({ id: "voted-late", hasVoted: true, deadline: "2026-09-29T00:00:00.000Z" }),
+      poll({ id: "voted-none-new", hasVoted: true, createdAt: "2026-09-10T00:00:00.000Z" }),
+      poll({ id: "voted-soon", hasVoted: true, deadline: "2026-09-26T00:00:00.000Z" }),
+    ]);
+    expect(open.map((p) => p.id)).toEqual(["voted-soon", "voted-late", "voted-none-new", "voted-none-old"]);
+  });
+
+  it("마감 섹션은 투표 완료 여부와 상관없이 마감된 때 최신순이다", () => {
+    const { closed } = groupPollsByStatus([
+      poll({ id: "todo-early", status: "closed", closedAt: "2026-09-20T00:00:00.000Z" }),
+      poll({ id: "voted-late", status: "closed", hasVoted: true, closedAt: "2026-09-24T00:00:00.000Z" }),
+    ]);
+    expect(closed.map((p) => p.id)).toEqual(["voted-late", "todo-early"]);
+  });
+});

@@ -55,8 +55,10 @@ export type PollList = {
 const newestFirst = (a: PollSummary, b: PollSummary) =>
   Date.parse(b.createdAt) - Date.parse(a.createdAt);
 
-// 진행 중: 마감 시각 있는 투표를 임박순으로 먼저, 없는 투표는 그 아래 최신순
+// 진행 중: 아직 투표하지 않은 투표를 먼저, 투표 완료한 투표를 그 아래에.
+// 각 그룹 안에서는 마감 시각 있는 투표를 임박순으로 먼저, 없는 투표는 그 아래 최신순
 function openOrder(a: PollSummary, b: PollSummary) {
+  if (a.hasVoted !== b.hasVoted) return a.hasVoted ? 1 : -1;
   if (a.deadline !== null && b.deadline !== null) return Date.parse(a.deadline) - Date.parse(b.deadline);
   if (a.deadline !== null) return -1;
   if (b.deadline !== null) return 1;
