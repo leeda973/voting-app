@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 동아리 투표
 
-## Getting Started
+동아리 구성원이 관리자가 올린 질문에 선택지 하나를 골라 투표하고 결과를 확인하는 웹앱입니다. Next.js(App Router), TypeScript, Neon Postgres로 만들고 Vercel에 배포합니다.
 
-First, run the development server:
+- 용어: [CONTEXT.md](CONTEXT.md)
+- 스펙: [.scratch/voting-app/spec.md](.scratch/voting-app/spec.md)
+- 결정 기록: [docs/adr/](docs/adr/)
+
+## 준비
+
+1. 의존성을 설치합니다.
+
+   ```bash
+   npm install
+   ```
+
+2. 저장소 루트에 `.env.local`을 만들고 Neon 연결 문자열을 넣습니다.
+
+   ```bash
+   DATABASE_URL=postgres://...
+   ```
+
+## 데이터베이스 스키마 적용
+
+스키마는 [db/schema.sql](db/schema.sql) 파일 하나로 관리합니다. 마이그레이션 도구는 쓰지 않습니다.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run db:schema
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local`의 `DATABASE_URL`에 연결해 스키마를 적용하고, 만들어진 테이블 목록을 출력합니다. 모든 문장이 `IF NOT EXISTS`라서 여러 번 실행해도 안전합니다. 대신 이미 있는 테이블은 건너뛰므로, `schema.sql`에서 열이나 제약을 바꿨다면 그 변경은 직접 `ALTER TABLE`로 적용해야 합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Neon 콘솔의 SQL Editor에 `db/schema.sql` 내용을 붙여 넣어 실행해도 됩니다.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 개발
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev    # 개발 서버 (http://localhost:3000)
+npm test       # 테스트 (Vitest)
+npm run lint   # 린트
+npm run build  # 프로덕션 빌드
+```
