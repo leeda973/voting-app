@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { currentViewer } from "@/lib/auth";
+import { decideVote } from "@/lib/poll-rules";
 import { getPollDetail, getResult } from "@/lib/polls";
 import { AdminActions } from "./admin-actions";
 import { ResultView } from "./result-view";
@@ -19,7 +20,12 @@ export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
     );
   }
 
-  const canVote = poll.status === "open" && poll.myOptionId === null;
+  // 아직 선택지를 고르기 전이므로 선택지 조건은 통과로 두고 투표 가능 여부만 묻는다
+  const canVote = decideVote({
+    status: poll.status,
+    hasVoted: poll.myOptionId !== null,
+    optionBelongsToPoll: true,
+  }).ok;
   const result = poll.canViewResult ? await getResult(poll) : null;
 
   return (
@@ -35,7 +41,7 @@ export default async function PollPage({ params }: PageProps<"/polls/[id]">) {
           {canVote && (
             <h2 className="mt-10 text-sm font-semibold text-muted">현재 결과 (관리자에게만 보여요)</h2>
           )}
-          <ResultView result={result} />
+          <ResultView key={`${result.status}-${result.myOptionId}`} result={result} />
         </>
       )}
 

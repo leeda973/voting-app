@@ -69,7 +69,7 @@ export function ResultView({ result: initialResult }: { result: Result }) {
             >
               <span className="min-w-0 break-words">
                 {option.label}
-                {mine && <span className="ml-2 text-xs font-semibold text-accent">내 선택</span>}
+                {mine && <span className="ml-2 text-xs font-semibold text-accent">내 표</span>}
               </span>
               <span className="shrink-0 tabular-nums">
                 <span className="font-semibold">{option.votes}표</span>

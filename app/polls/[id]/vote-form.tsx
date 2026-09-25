@@ -9,6 +9,8 @@ export function VoteForm({ pollId, options }: { pollId: string; options: PollOpt
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 폼을 열어 둔 사이 마감됐다. 안내를 남겨 두고, 결과는 사용자가 눌러서 본다
+  const [closed, setClosed] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,8 +31,9 @@ export function VoteForm({ pollId, options }: { pollId: string; options: PollOpt
       }
       const body = await response.json().catch(() => null);
       setError(body?.message ?? "표를 남기지 못했어요. 잠시 후 다시 시도해 주세요.");
-      // 마감·삭제·이미 투표함이면 최신 상태로 화면을 바꾼다
-      if (response.status === 404 || response.status === 409) router.refresh();
+      if (body?.error === "poll_closed") setClosed(true);
+      // 삭제됐거나 이미 투표했으면 최신 상태(없는 투표 안내, 결과)로 화면을 바꾼다
+      else if (response.status === 404 || response.status === 409) router.refresh();
     } catch {
       setError("표를 남기지 못했어요. 네트워크를 확인해 주세요.");
     }
@@ -63,13 +66,23 @@ export function VoteForm({ pollId, options }: { pollId: string; options: PollOpt
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={!selected || submitting}
-        className="rounded-xl bg-accent px-4 py-3 font-semibold text-background disabled:opacity-60"
-      >
-        {submitting ? "표 남기는 중…" : "투표하기"}
-      </button>
+      {closed ? (
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="rounded-xl bg-accent px-4 py-3 font-semibold text-background"
+        >
+          최종 결과 보기
+        </button>
+      ) : (
+        <button
+          type="submit"
+          disabled={!selected || submitting}
+          className="rounded-xl bg-accent px-4 py-3 font-semibold text-background disabled:opacity-60"
+        >
+          {submitting ? "표 남기는 중…" : "투표하기"}
+        </button>
+      )}
     </form>
   );
 }

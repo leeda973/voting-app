@@ -10,6 +10,7 @@ import {
   type PollOption,
   type PollStatus,
   type Result,
+  type Viewer,
 } from "./poll-rules";
 
 type PollRow = {
@@ -22,9 +23,9 @@ type PollRow = {
 
 const toIso = (date: Date) => new Date(date).toISOString();
 
-// 투표 id는 uuid다. 형식이 다르면 DB가 오류를 내므로 미리 걸러 "없는 투표"로 처리한다.
+// 투표·선택지 id는 uuid다. 형식이 다르면 DB가 오류를 내므로 미리 걸러 "없는 것"으로 처리한다.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export const isPollId = (id: string) => UUID.test(id);
+const isUuid = (id: string) => UUID.test(id);
 
 // voterId가 없으면(아직 브라우저 식별 쿠키가 없으면) 모든 투표가 hasVoted: false다.
 export async function listPolls(voterId: string | null): Promise<PollList> {
@@ -66,11 +67,9 @@ export async function createPoll(input: PollInput): Promise<string> {
   return id;
 }
 
-export type Viewer = { voterId: string | null; isAdmin: boolean };
-
 export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDetail | null> {
   await connection();
-  if (!isPollId(id)) return null;
+  if (!isUuid(id)) return null;
 
   const sql = getSql();
   const [polls, options, myVotes] = (await Promise.all([
@@ -101,7 +100,7 @@ export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDet
 // 투표 행에 FOR SHARE 잠금을 걸어, 동시에 마감이 커밋되면 그 뒤의 상태로 다시 확인한다(마감 이후의 표 방지).
 // 저장했으면 true, 조건에 걸려 저장하지 않았으면 false.
 export async function castVote(pollId: string, optionId: string, voterId: string): Promise<boolean> {
-  if (!isPollId(pollId) || !isPollId(optionId)) return false;
+  if (!isUuid(pollId) || !isUuid(optionId)) return false;
   const sql = getSql();
   const rows = await sql`
     INSERT INTO votes (poll_id, option_id, voter_id)
@@ -134,7 +133,7 @@ export async function getResult(poll: PollDetail): Promise<Result> {
 
 // 진행 중인 투표만 마감한다. 마감된 투표를 다시 진행 중으로 바꾸는 함수는 없다.
 export async function closePoll(id: string): Promise<"closed" | "already_closed" | "not_found"> {
-  if (!isPollId(id)) return "not_found";
+  if (!isUuid(id)) return "not_found";
   const sql = getSql();
   const closed = await sql`
     UPDATE polls SET status = 'closed', closed_at = now()
@@ -149,7 +148,7 @@ export async function closePoll(id: string): Promise<"closed" | "already_closed"
 
 // 투표를 완전히 삭제한다. 선택지와 표는 연쇄 삭제된다. 삭제했으면 true, 없던 투표면 false.
 export async function deletePoll(id: string): Promise<boolean> {
-  if (!isPollId(id)) return false;
+  if (!isUuid(id)) return false;
   const sql = getSql();
   const rows = await sql`DELETE FROM polls WHERE id = ${id} RETURNING id`;
   return rows.length > 0;

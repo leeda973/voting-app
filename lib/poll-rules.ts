@@ -103,7 +103,7 @@ export function decideVote(input: {
   return { ok: true };
 }
 
-// ── 결과 공개 여부와 집계 ──
+// ── 결과 공개 여부와 선택지별 표 수 계산 ──
 
 // 관리자이거나, 표를 남겼거나, 마감된 투표면 결과를 볼 수 있다.
 export function canViewResult(input: { status: PollStatus; hasVoted: boolean; isAdmin: boolean }): boolean {
@@ -135,3 +135,6 @@ export function tallyResult(
     })),
   };
 }
+
+// 지금 요청한 브라우저: 투표자 식별 쿠키 값(없으면 null)과 관리자 여부
+export type Viewer = { voterId: string | null; isAdmin: boolean };
