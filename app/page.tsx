@@ -21,6 +21,12 @@ export default async function Home() {
           <PollSection title="마감" polls={closed} emptyText="마감된 투표가 없어요." />
         </>
       )}
+
+      <footer className="mt-16 border-t border-line pt-4 text-center">
+        <Link href="/admin" className="text-sm text-muted underline">
+          관리자
+        </Link>
+      </footer>
     </main>
   );
 }
