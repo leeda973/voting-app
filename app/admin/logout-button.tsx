@@ -1,14 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LogoutButton() {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
   async function handleClick() {
     setSubmitting(true);
     await fetch("/api/admin/session", { method: "DELETE" }).catch(() => null);
-    window.location.assign("/admin");
+    // 같은 /admin 화면을 서버에서 다시 그려 관리자 비밀번호 폼으로 바꾼다
+    router.refresh();
+    setSubmitting(false);
   }
 
   return (

@@ -25,14 +25,12 @@ export default async function AdminPage() {
       <p className="mt-2 text-muted">관리자 세션은 1일 동안 유지돼요.</p>
 
       <div className="mt-8 flex flex-col gap-3">
-        {/* 투표 만들기는 티켓 04에서 연결한다 */}
-        <button
-          type="button"
-          disabled
-          className="rounded-xl bg-accent px-4 py-3 font-semibold text-background opacity-60"
+        <Link
+          href="/polls/new"
+          className="rounded-xl bg-accent px-4 py-3 text-center font-semibold text-background"
         >
-          투표 만들기 (준비 중)
-        </button>
+          투표 만들기
+        </Link>
         <Link href="/" className="rounded-xl border border-line px-4 py-3 text-center">
           투표 목록으로
         </Link>

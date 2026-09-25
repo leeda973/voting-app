@@ -90,3 +90,9 @@ export async function forbiddenUnlessAdmin(): Promise<Response | null> {
 export async function currentVoterId(): Promise<string | null> {
   return (await cookies()).get(VOTER_COOKIE)?.value ?? null;
 }
+
+// 지금 요청한 브라우저가 누구인지(투표자 식별, 관리자 여부)
+export async function currentViewer(): Promise<{ voterId: string | null; isAdmin: boolean }> {
+  const [voterId, admin] = await Promise.all([currentVoterId(), isAdmin()]);
+  return { voterId, isAdmin: admin };
+}
