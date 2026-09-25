@@ -146,3 +146,11 @@ export async function closePoll(id: string): Promise<"closed" | "already_closed"
   const existing = await sql`SELECT 1 FROM polls WHERE id = ${id}`;
   return existing.length > 0 ? "already_closed" : "not_found";
 }
+
+// 투표를 완전히 삭제한다. 선택지와 표는 연쇄 삭제된다. 삭제했으면 true, 없던 투표면 false.
+export async function deletePoll(id: string): Promise<boolean> {
+  if (!isPollId(id)) return false;
+  const sql = getSql();
+  const rows = await sql`DELETE FROM polls WHERE id = ${id} RETURNING id`;
+  return rows.length > 0;
+}

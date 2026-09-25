@@ -25,6 +25,11 @@ export function ResultView({ result: initialResult }: { result: Result }) {
           signal: controller.signal,
           cache: "no-store",
         });
+        if (response.status === 404) {
+          // 삭제된 투표다. 갱신을 멈추고 "없는 투표" 화면으로 바꾼다
+          router.refresh();
+          return;
+        }
         if (response.ok) {
           const next: Result = await response.json();
           setResult(next);
