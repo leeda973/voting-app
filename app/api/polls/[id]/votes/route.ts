@@ -30,7 +30,10 @@ export async function POST(request: Request, ctx: RouteContext<"/api/polls/[id]/
       const fresh = await getPollDetail(id, { ...viewer, voterId });
       if (!fresh) return notFoundResponse();
       const retry = decide(fresh, optionId);
-      return voteRejectedResponse(retry.ok ? "already_voted" : retry.reason);
+      if (!retry.ok) return voteRejectedResponse(retry.reason);
+      // 앱 기준으로는 아직 가능해 보여도 DB가 거절했다. 내 표가 있으면 이미 투표한 것이고,
+      // 없으면 DB 현재 시각 기준으로 마감 시각이 지난 것이다(앱 서버와 DB 시계의 작은 차이).
+      return voteRejectedResponse(fresh.myOptionId !== null ? "already_voted" : "poll_closed");
     }
 
     const voted = await getPollDetail(id, { ...viewer, voterId });

@@ -5,7 +5,9 @@ export type PollStatus = "open" | "closed";
 
 // ── 실제 상태 (ADR 0002) ──
 // DB에 저장된 상태 값은 관리자가 마감했는지만 나타낸다. 마감 시각이 지났는지는 조회할 때 판단한다.
-// 진행 중/마감은 항상 이 두 함수로 판단한다. 현재 시각(ms)은 인자로 받는다.
+// 앱 코드의 진행 중/마감 판단은 항상 아래 함수들로 한다. 현재 시각(ms)은 인자로 받는다.
+// 원자적으로 판단해야 하는 표 저장·마감 SQL(lib/polls.ts의 castVote, closePoll)만 같은 규칙을
+// "status = 'open' AND (closes_at IS NULL OR closes_at > now())"로 다시 쓴다. 규칙을 바꾸면 둘 다 바꾼다.
 
 type StoredPollState = { storedStatus: PollStatus; deadline: string | null };
 
@@ -16,7 +18,7 @@ export function effectiveStatus({ storedStatus, deadline }: StoredPollState, now
   return "open";
 }
 
-// 관리자가 마감한 시각이 있으면 그 값, 마감 시각이 지나 마감됐으면 마감 시각 값, 진행 중이면 null
+// 마감된 때: 관리자가 마감한 시각이 있으면 그 값, 마감 시각이 지나 마감됐으면 마감 시각 값, 진행 중이면 null
 export function effectiveClosedAt(
   poll: StoredPollState & { closedAt: string | null },
   now: number,
@@ -25,13 +27,21 @@ export function effectiveClosedAt(
   return effectiveStatus(poll, now) === "closed" ? poll.deadline : null;
 }
 
+// 저장된 값(closedAt은 관리자가 마감한 시각)으로 화면과 API에 내보낼 상태·마감된 때·마감 시각을 만든다
+export function effectivePollState(
+  poll: StoredPollState & { closedAt: string | null },
+  now: number,
+): { status: PollStatus; closedAt: string | null; deadline: string | null } {
+  return { status: effectiveStatus(poll, now), closedAt: effectiveClosedAt(poll, now), deadline: poll.deadline };
+}
+
 export type PollSummary = {
   id: string;
   question: string;
   status: PollStatus;
   createdAt: string;
   deadline: string | null; // 마감 시각. 없으면 null
-  closedAt: string | null; // 실제 마감된 시각. 진행 중이면 null
+  closedAt: string | null; // 마감된 때(관리자 마감 또는 마감 시각 도달). 진행 중이면 null
   hasVoted: boolean;
 };
 
@@ -106,7 +116,7 @@ export type PollDetail = {
   status: PollStatus;
   createdAt: string;
   deadline: string | null; // 마감 시각. 없으면 null
-  closedAt: string | null; // 실제 마감된 시각. 진행 중이면 null
+  closedAt: string | null; // 마감된 때(관리자 마감 또는 마감 시각 도달). 진행 중이면 null
   options: PollOption[]; // 표시 순서대로
   myOptionId: string | null; // 이 브라우저의 표. 없으면 null
   canViewResult: boolean;

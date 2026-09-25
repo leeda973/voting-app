@@ -2,8 +2,7 @@ import { connection } from "next/server";
 import { getSql } from "./db";
 import {
   canViewResult,
-  effectiveClosedAt,
-  effectiveStatus,
+  effectivePollState,
   groupPollsByStatus,
   tallyResult,
   type PollDetail,
@@ -28,18 +27,16 @@ type PollRow = {
 
 const toIso = (date: Date) => new Date(date).toISOString();
 
-// 저장된 값과 현재 시각으로 실제 상태, 실제 마감된 시각, 마감 시각을 계산한다.
+// DB 행을 규칙 모듈의 저장된 값 형태로 바꿔 실제 상태를 계산한다(closes_at → deadline, closed_at → closedAt).
 function pollState(row: PollRow, now: number) {
-  const stored = {
-    storedStatus: row.status,
-    deadline: row.closes_at ? toIso(row.closes_at) : null,
-    closedAt: row.closed_at ? toIso(row.closed_at) : null,
-  };
-  return {
-    status: effectiveStatus(stored, now),
-    closedAt: effectiveClosedAt(stored, now),
-    deadline: stored.deadline,
-  };
+  return effectivePollState(
+    {
+      storedStatus: row.status,
+      deadline: row.closes_at ? toIso(row.closes_at) : null,
+      closedAt: row.closed_at ? toIso(row.closed_at) : null,
+    },
+    now,
+  );
 }
 
 // 투표·선택지 id는 uuid다. 형식이 다르면 DB가 오류를 내므로 미리 걸러 "없는 것"으로 처리한다.
@@ -118,7 +115,7 @@ export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDet
 }
 
 // 표를 저장한다. "진행 중인(관리자가 마감하지 않았고 마감 시각 전인) 투표의, 그 투표에 속한 선택지"일 때만
-// 같은 쿼리 안에서 저장하고,
+// 같은 쿼리 안에서 저장한다. 진행 중 조건은 규칙 모듈의 effectiveStatus와 같은 규칙이다(DB 현재 시각 기준).
 // 같은 브라우저의 두 번째 표는 (poll_id, voter_id) 유니크 제약으로 버려진다.
 // 투표 행에 FOR SHARE 잠금을 걸어, 동시에 마감이 커밋되면 그 뒤의 상태로 다시 확인한다(마감 이후의 표 방지).
 // 저장했으면 true, 조건에 걸려 저장하지 않았으면 false.
@@ -155,7 +152,7 @@ export async function getResult(poll: PollDetail): Promise<Result> {
   };
 }
 
-// 진행 중인 투표만 마감한다. 마감 시각이 이미 지났으면 이미 마감된 투표다.
+// 진행 중인 투표만 마감한다. 진행 중 조건은 effectiveStatus와 같은 규칙이며, 마감 시각이 이미 지났으면 이미 마감된 투표다.
 // 마감된 투표를 다시 진행 중으로 바꾸는 함수는 없다.
 export async function closePoll(id: string): Promise<"closed" | "already_closed" | "not_found"> {
   if (!isUuid(id)) return "not_found";

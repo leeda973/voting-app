@@ -3,6 +3,7 @@ import {
   canViewResult,
   decideVote,
   effectiveClosedAt,
+  effectivePollState,
   effectiveStatus,
   groupPollsByStatus,
   tallyResult,
@@ -310,5 +311,38 @@ describe("실제 상태와 기존 규칙의 조합", () => {
     const status = effectiveStatus({ storedStatus: "open", deadline: null }, after);
     expect(decideVote({ status, hasVoted: false, optionBelongsToPoll: true })).toEqual({ ok: true });
     expect(canViewResult({ status, hasVoted: false, isAdmin: false })).toBe(false);
+  });
+});
+
+describe("effectivePollState와 목록 분류", () => {
+  const now = Date.parse("2026-09-27T09:00:00.000Z");
+  const stored = (id: string, over: Partial<{ storedStatus: "open" | "closed"; deadline: string | null; closedAt: string | null }>) => ({
+    ...poll({ id }),
+    storedStatus: "open" as const,
+    deadline: null,
+    closedAt: null,
+    ...over,
+  });
+  const classify = (polls: ReturnType<typeof stored>[]) =>
+    groupPollsByStatus(polls.map((p) => ({ ...p, ...effectivePollState(p, now) })));
+
+  it("마감 시각이 지난 투표는 마감 쪽으로 가고, 마감된 때는 마감 시각이다", () => {
+    const { open, closed } = classify([stored("past", { deadline: "2026-09-27T08:00:00.000Z" })]);
+    expect(open).toEqual([]);
+    expect(closed.map((p) => [p.id, p.status, p.closedAt])).toEqual([["past", "closed", "2026-09-27T08:00:00.000Z"]]);
+  });
+
+  it("마감 시각이 없는 투표는 저장된 상태대로 나뉜다", () => {
+    const { open, closed } = classify([
+      stored("none-open", {}),
+      stored("none-closed", { storedStatus: "closed", closedAt: "2026-09-26T00:00:00.000Z" }),
+    ]);
+    expect(open.map((p) => [p.id, p.deadline, p.closedAt])).toEqual([["none-open", null, null]]);
+    expect(closed.map((p) => [p.id, p.closedAt])).toEqual([["none-closed", "2026-09-26T00:00:00.000Z"]]);
+  });
+
+  it("마감 시각이 미래인 투표는 진행 중이다", () => {
+    const { open } = classify([stored("future", { deadline: "2026-09-28T00:00:00.000Z" })]);
+    expect(open.map((p) => [p.id, p.status])).toEqual([["future", "open"]]);
   });
 });
