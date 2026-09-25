@@ -63,18 +63,28 @@ export function ResultView({ result: initialResult }: { result: Result }) {
           return (
             <li
               key={option.id}
-              className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
-                mine ? "border-accent bg-accent-soft" : "border-line"
-              }`}
+              className={`rounded-xl border px-4 py-3 ${mine ? "border-accent bg-accent-soft" : "border-line"}`}
             >
-              <span className="min-w-0 break-words">
-                {option.label}
-                {mine && <span className="ml-2 text-xs font-semibold text-accent">내 표</span>}
-              </span>
-              <span className="shrink-0 tabular-nums">
-                <span className="font-semibold">{option.votes}표</span>
-                <span className="ml-2 text-muted">{option.percent}%</span>
-              </span>
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0 break-words">
+                  {option.label}
+                  {mine && <span className="ml-2 text-xs font-semibold text-accent">내 표</span>}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  <span className="font-semibold">{option.votes}표</span>
+                  <span className="ml-2 text-muted">{option.percent}%</span>
+                </span>
+              </div>
+              {/* 막대는 숫자와 같은 정보라 보조 기술에는 숨긴다. 트랙은 항상 보여 0표면 빈 막대가 된다 */}
+              <div
+                aria-hidden
+                className={`mt-2 h-2 overflow-hidden rounded-full ${mine ? "bg-background" : "bg-line"}`}
+              >
+                <div
+                  className={`h-full rounded-full transition-[width] duration-500 ${mine ? "bg-accent" : "bg-muted"}`}
+                  style={{ width: `${option.percent}%` }}
+                />
+              </div>
             </li>
           );
         })}
