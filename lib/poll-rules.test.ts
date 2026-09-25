@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { decideVote, groupPollsByStatus, validatePollInput, type PollSummary } from "./poll-rules";
+import {
+  canViewResult,
+  decideVote,
+  groupPollsByStatus,
+  tallyResult,
+  validatePollInput,
+  type PollSummary,
+} from "./poll-rules";
 
 function poll(overrides: Partial<PollSummary> & Pick<PollSummary, "id">): PollSummary {
   return {
@@ -166,5 +173,64 @@ describe("decideVote", () => {
       ok: false,
       reason: "already_voted",
     });
+  });
+});
+
+describe("canViewResult", () => {
+  it.each([
+    { status: "open", hasVoted: false, isAdmin: false, expected: false },
+    { status: "open", hasVoted: true, isAdmin: false, expected: true },
+    { status: "open", hasVoted: false, isAdmin: true, expected: true },
+    { status: "open", hasVoted: true, isAdmin: true, expected: true },
+    { status: "closed", hasVoted: false, isAdmin: false, expected: true },
+    { status: "closed", hasVoted: true, isAdmin: false, expected: true },
+    { status: "closed", hasVoted: false, isAdmin: true, expected: true },
+  ] as const)(
+    "상태 $status, 투표함 $hasVoted, 관리자 $isAdmin → $expected",
+    ({ expected, ...input }) => {
+      expect(canViewResult(input)).toBe(expected);
+    },
+  );
+});
+
+describe("tallyResult", () => {
+  const options = [
+    { id: "a", label: "치킨" },
+    { id: "b", label: "피자" },
+    { id: "c", label: "족발" },
+  ];
+
+  it("표가 없으면 총 0표, 모두 0%다", () => {
+    expect(tallyResult(options, {})).toEqual({
+      totalVotes: 0,
+      options: [
+        { id: "a", label: "치킨", votes: 0, percent: 0 },
+        { id: "b", label: "피자", votes: 0, percent: 0 },
+        { id: "c", label: "족발", votes: 0, percent: 0 },
+      ],
+    });
+  });
+
+  it("한 선택지에 몰리면 그 선택지가 100%다", () => {
+    const result = tallyResult(options, { b: 4 });
+    expect(result.totalVotes).toBe(4);
+    expect(result.options.map((o) => o.percent)).toEqual([0, 100, 0]);
+  });
+
+  it("비율은 정수로 반올림한다(3표를 1:1:1로 나누면 각 33%)", () => {
+    expect(tallyResult(options, { a: 1, b: 1, c: 1 }).options.map((o) => o.percent)).toEqual([33, 33, 33]);
+  });
+
+  it("반올림 경계: 2:1이면 67%와 33%다", () => {
+    expect(tallyResult(options, { a: 2, c: 1 }).options.map((o) => o.percent)).toEqual([67, 0, 33]);
+  });
+
+  it("표가 없는 선택지도 0표로 포함하고 표시 순서를 지킨다", () => {
+    const result = tallyResult(options, { c: 2, a: 1 });
+    expect(result.options.map((o) => [o.id, o.votes])).toEqual([
+      ["a", 1],
+      ["b", 0],
+      ["c", 2],
+    ]);
   });
 });

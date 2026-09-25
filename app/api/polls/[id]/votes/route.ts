@@ -1,7 +1,7 @@
 import { notFoundResponse, serverErrorResponse, voteRejectedResponse } from "@/lib/api";
 import { currentViewer, ensureVoterId } from "@/lib/auth";
 import { decideVote, type PollDetail } from "@/lib/poll-rules";
-import { castVote, getPollDetail } from "@/lib/polls";
+import { castVote, getPollDetail, getResult } from "@/lib/polls";
 
 const decide = (poll: PollDetail, optionId: string) =>
   decideVote({
@@ -33,8 +33,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/polls/[id]/
       return voteRejectedResponse(retry.ok ? "already_voted" : retry.reason);
     }
 
-    // 결과(Result) 응답은 티켓 06에서 붙인다
-    return Response.json({ pollId: id, myOptionId: optionId }, { status: 201 });
+    const voted = await getPollDetail(id, { ...viewer, voterId });
+    if (!voted) return notFoundResponse();
+    return Response.json(await getResult(voted), { status: 201 });
   } catch (error) {
     return serverErrorResponse(error, "표를 남기지 못했어요. 잠시 후 다시 시도해 주세요.");
   }

@@ -21,3 +21,6 @@ export function voteRejectedResponse(reason: keyof typeof VOTE_REJECTIONS): Resp
   const { status, message } = VOTE_REJECTIONS[reason];
   return errorResponse(status, reason, message);
 }
+
+export const resultHiddenResponse = () =>
+  errorResponse(403, "result_hidden", "표를 남기면 결과를 볼 수 있어요.");

@@ -102,3 +102,36 @@ export function decideVote(input: {
   if (!input.optionBelongsToPoll) return { ok: false, reason: "invalid_option" };
   return { ok: true };
 }
+
+// ── 결과 공개 여부와 집계 ──
+
+// 관리자이거나, 표를 남겼거나, 마감된 투표면 결과를 볼 수 있다.
+export function canViewResult(input: { status: PollStatus; hasVoted: boolean; isAdmin: boolean }): boolean {
+  return input.isAdmin || input.hasVoted || input.status === "closed";
+}
+
+export type ResultOption = PollOption & { votes: number; percent: number };
+
+export type Result = {
+  pollId: string;
+  status: PollStatus;
+  totalVotes: number;
+  options: ResultOption[]; // 표시 순서대로
+  myOptionId: string | null;
+};
+
+// 비율은 정수로 반올림하므로 합계가 100이 아닐 수 있다.
+export function tallyResult(
+  options: PollOption[],
+  votesByOption: Record<string, number>,
+): Pick<Result, "totalVotes" | "options"> {
+  const counted = options.map((option) => ({ ...option, votes: votesByOption[option.id] ?? 0 }));
+  const totalVotes = counted.reduce((sum, option) => sum + option.votes, 0);
+  return {
+    totalVotes,
+    options: counted.map((option) => ({
+      ...option,
+      percent: totalVotes === 0 ? 0 : Math.round((option.votes / totalVotes) * 100),
+    })),
+  };
+}

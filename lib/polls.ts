@@ -1,12 +1,15 @@
 import { connection } from "next/server";
 import { getSql } from "./db";
 import {
+  canViewResult,
   groupPollsByStatus,
+  tallyResult,
   type PollDetail,
   type PollInput,
   type PollList,
   type PollOption,
   type PollStatus,
+  type Result,
 } from "./poll-rules";
 
 type PollRow = {
@@ -79,6 +82,7 @@ export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDet
   const poll = polls[0];
   if (!poll) return null;
 
+  const myOptionId = myVotes[0]?.option_id ?? null;
   return {
     id: poll.id,
     question: poll.question,
@@ -86,8 +90,8 @@ export async function getPollDetail(id: string, viewer: Viewer): Promise<PollDet
     createdAt: toIso(poll.created_at),
     closedAt: poll.closed_at ? toIso(poll.closed_at) : null,
     options,
-    myOptionId: myVotes[0]?.option_id ?? null,
-    canViewResult: false, // 결과 공개 규칙은 티켓 06에서 붙인다
+    myOptionId,
+    canViewResult: canViewResult({ status: poll.status, hasVoted: myOptionId !== null, isAdmin: viewer.isAdmin }),
     isAdmin: viewer.isAdmin,
   };
 }
@@ -108,4 +112,20 @@ export async function castVote(pollId: string, optionId: string, voterId: string
     RETURNING id
   `;
   return rows.length > 0;
+}
+
+// 공개 여부는 호출하는 쪽에서 poll.canViewResult로 먼저 확인한다.
+export async function getResult(poll: PollDetail): Promise<Result> {
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT option_id, count(*)::int AS votes FROM votes WHERE poll_id = ${poll.id} GROUP BY option_id
+  `) as { option_id: string; votes: number }[];
+
+  const votesByOption = Object.fromEntries(rows.map((r) => [r.option_id, r.votes]));
+  return {
+    pollId: poll.id,
+    status: poll.status,
+    ...tallyResult(poll.options, votesByOption),
+    myOptionId: poll.myOptionId,
+  };
 }
