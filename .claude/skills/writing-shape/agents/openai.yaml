@@ -1,0 +1,5 @@
+interface:
+  display_name: "Writing Shape"
+  short_description: "원자료를 한 편의 글로 다듬기"
+policy:
+  allow_implicit_invocation: false

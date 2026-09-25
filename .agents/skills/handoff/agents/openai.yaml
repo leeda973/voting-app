@@ -1,0 +1,5 @@
+interface:
+  display_name: "Handoff"
+  short_description: "대화를 핸드오프 문서로 압축하기"
+policy:
+  allow_implicit_invocation: false

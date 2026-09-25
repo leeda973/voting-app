@@ -1,0 +1,5 @@
+interface:
+  display_name: "Teach"
+  short_description: "가이드형 워크스페이스에서 개념 학습하기"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,5 @@
+interface:
+  display_name: "To Tickets"
+  short_description: "계획을 예광탄(tracer-bullet) 티켓으로 쪼개기"
+policy:
+  allow_implicit_invocation: false

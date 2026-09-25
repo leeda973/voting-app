@@ -1,0 +1,5 @@
+interface:
+  display_name: "To Spec"
+  short_description: "대화를 스펙으로 정리하기"
+policy:
+  allow_implicit_invocation: false

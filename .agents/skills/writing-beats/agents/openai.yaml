@@ -1,0 +1,5 @@
+interface:
+  display_name: "Writing Beats"
+  short_description: "원자료를 비트로 엮기"
+policy:
+  allow_implicit_invocation: false

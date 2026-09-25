@@ -1,0 +1,5 @@
+interface:
+  display_name: "Writing Fragments"
+  short_description: "날것의 글 조각 캐내기"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Implement Spec"
+  short_description: "스펙 전체를 하나의 PR로 구현하기"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Implement"
+  short_description: "스펙이나 티켓을 바탕으로 작업 구현하기"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Wizard"
+  short_description: "대화형 설정 마법사 생성"

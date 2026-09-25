@@ -1,0 +1,3 @@
+interface:
+  display_name: "Scaffold Exercises"
+  short_description: "lint를 통과하는 강의 연습 문제 뼈대 만들기"

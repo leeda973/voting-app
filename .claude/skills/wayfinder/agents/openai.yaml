@@ -1,0 +1,5 @@
+interface:
+  display_name: "Wayfinder"
+  short_description: "큰 작업을 결정 티켓의 지도로 그리기"
+policy:
+  allow_implicit_invocation: false
